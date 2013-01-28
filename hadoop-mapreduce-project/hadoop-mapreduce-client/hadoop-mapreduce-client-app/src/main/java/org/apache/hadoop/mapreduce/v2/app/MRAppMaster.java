@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -39,6 +40,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.LocalContainerLauncher;
 import org.apache.hadoop.mapred.TaskAttemptListenerImpl;
 import org.apache.hadoop.mapred.TaskUmbilicalProtocol;
+import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
@@ -70,6 +72,7 @@ import org.apache.hadoop.mapreduce.v2.app.job.impl.JobImpl;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerLauncher;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerLauncherEvent;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerLauncherImpl;
+import org.apache.hadoop.mapreduce.v2.app.launcher.URMContainerLauncher;
 import org.apache.hadoop.mapreduce.v2.app.local.LocalContainerAllocator;
 import org.apache.hadoop.mapreduce.v2.app.metrics.MRAppMetrics;
 import org.apache.hadoop.mapreduce.v2.app.recover.Recovery;
@@ -78,6 +81,7 @@ import org.apache.hadoop.mapreduce.v2.app.rm.ContainerAllocator;
 import org.apache.hadoop.mapreduce.v2.app.rm.ContainerAllocatorEvent;
 import org.apache.hadoop.mapreduce.v2.app.rm.RMCommunicator;
 import org.apache.hadoop.mapreduce.v2.app.rm.RMContainerAllocator;
+import org.apache.hadoop.mapreduce.v2.app.rm.URMContainerAllocator;
 import org.apache.hadoop.mapreduce.v2.app.speculate.DefaultSpeculator;
 import org.apache.hadoop.mapreduce.v2.app.speculate.Speculator;
 import org.apache.hadoop.mapreduce.v2.app.speculate.SpeculatorEvent;
@@ -657,13 +661,20 @@ public class MRAppMaster extends CompositeService {
     public synchronized void start() {
       if (job.isUber()) {
         this.containerAllocator = new LocalContainerAllocator(
-            this.clientService, this.context, nmHost, nmPort, nmHttpPort
-            , containerID);
+            this.clientService, this.context, nmHost, nmPort, nmHttpPort,
+            containerID);
+      } else if (StringUtils.equalsIgnoreCase(
+          getConfig()
+              .get(MRConfig.FRAMEWORK_NAME, MRConfig.YARN_FRAMEWORK_NAME),
+          MRConfig.URM_FRAMEWORK_NAME)) {
+        // chooses "URMContainerLauncher"
+        this.containerAllocator = new URMContainerAllocator(this.clientService,
+            this.context);
       } else {
-        this.containerAllocator = new RMContainerAllocator(
-            this.clientService, this.context);
+        this.containerAllocator = new RMContainerAllocator(this.clientService,
+            this.context);
       }
-      ((Service)this.containerAllocator).init(getConfig());
+      ((Service) this.containerAllocator).init(getConfig());
       ((Service)this.containerAllocator).start();
       super.start();
     }
@@ -707,6 +718,11 @@ public class MRAppMaster extends CompositeService {
       if (job.isUber()) {
         this.containerLauncher = new LocalContainerLauncher(context,
             (TaskUmbilicalProtocol) taskAttemptListener);
+      } else if (StringUtils.equalsIgnoreCase(
+          getConfig().get(MRConfig.FRAMEWORK_NAME, MRConfig.YARN_FRAMEWORK_NAME),
+          MRConfig.URM_FRAMEWORK_NAME)) {
+        // chooses "URMContainerLauncher"
+        this.containerLauncher = new URMContainerLauncher(context);
       } else {
         this.containerLauncher = new ContainerLauncherImpl(context);
       }

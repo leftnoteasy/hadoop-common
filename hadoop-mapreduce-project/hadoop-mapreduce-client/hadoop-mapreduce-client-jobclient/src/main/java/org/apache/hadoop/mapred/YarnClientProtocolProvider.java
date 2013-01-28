@@ -32,6 +32,8 @@ public class YarnClientProtocolProvider extends ClientProtocolProvider {
   public ClientProtocol create(Configuration conf) throws IOException {
     if (MRConfig.YARN_FRAMEWORK_NAME.equals(conf.get(MRConfig.FRAMEWORK_NAME))) {
       return new YARNRunner(conf);
+    } else if (MRConfig.URM_FRAMEWORK_NAME.equals(conf.get(MRConfig.FRAMEWORK_NAME))) {
+      return new URMRunner(conf);
     }
     return null;
   }
