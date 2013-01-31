@@ -1,6 +1,10 @@
 package org.apache.hadoop.mapred;
 
+import java.util.Map;
+import java.util.Map.Entry;
+
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapred.ompi.OmpiJobClient;
 import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsResponse;
@@ -25,7 +29,9 @@ import org.apache.hadoop.yarn.api.protocolrecords.SubmitApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
+import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
+import org.apache.hadoop.yarn.util.Records;
 
 public class URMDelegate implements ClientRMProtocol {
   
@@ -113,8 +119,39 @@ public class URMDelegate implements ClientRMProtocol {
   }
 
   public ApplicationId submitApplication(ApplicationSubmissionContext appContext) {
-    // TODO Auto-generated method stub
-    return null;
+    OmpiJobClient jc = new OmpiJobClient();
+    
+    // add files
+    String files = "";
+    Map<String, LocalResource> localResources = appContext.getAMContainerSpec().getLocalResources();
+    for (Entry<String, LocalResource> entry : localResources.entrySet()) {
+      LocalResource res = entry.getValue();
+      if (files != "") {
+        files = files + "," + res.getResource();
+      }
+    }
+    jc.addFiles(files);
+    
+    // add envs 
+    Map<String, String> envars = appContext.getAMContainerSpec().getEnvironment();
+    for (Entry<String, String> entry : envars.entrySet()) {
+      String envAdd = entry.getKey() + "=" + entry.getValue();
+      jc.addEnv(envAdd);
+    }
+    
+    // add args
+    String[] commands = appContext.getAMContainerSpec().getCommands().toArray(new String[0]);
+    
+    // add and submit it!
+    jc.addAppMaster(commands, null, 0L);
+    jc.runAM();
+    
+    // create ApplicationId
+    ApplicationId ret = Records.newRecord(ApplicationId.class);
+    ret.setClusterTimestamp(0L);
+    ret.setId(jc.getJobId());
+    
+    return ret;
   }
 
   public void killApplication(ApplicationId appId) {

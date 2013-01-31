@@ -134,26 +134,32 @@ typedef struct {
     bool active;
     orte_job_t *mapper;
     orte_job_t *reducer;
+    orte_job_t* am;
     opal_list_t map_apps;
     opal_list_t red_apps;
+    orte_app_context_t* am_app;
     char **files;
     char **addedenv;
     char **cps;
     opal_pointer_array_t file_maps;
 } orte_jobclient_t;
+
 static void jc_cons(orte_jobclient_t *ptr)
 {
     ptr->active = false;
     ptr->mapper = OBJ_NEW(orte_job_t);
     ptr->reducer = OBJ_NEW(orte_job_t);
+    ptr->am = OBJ_NEW(orte_job_t);
     OBJ_CONSTRUCT(&ptr->map_apps, opal_list_t);
     OBJ_CONSTRUCT(&ptr->red_apps, opal_list_t);
+    ptr->am_app = NULL;
     ptr->files = NULL;
     ptr->addedenv = NULL;
     ptr->cps = NULL;
     OBJ_CONSTRUCT(&ptr->file_maps, opal_pointer_array_t);
     opal_pointer_array_init(&ptr->file_maps, 8, INT_MAX, 8);
 }
+
 static void jc_des(orte_jobclient_t *ptr)
 {
     opal_list_item_t *item;
@@ -166,6 +172,9 @@ static void jc_des(orte_jobclient_t *ptr)
     if (NULL != ptr->reducer) {
         OBJ_RELEASE(ptr->reducer);
     }
+    if (NULL != ptr->am) {
+        OBJ_RELEASE(ptr->am);
+    }
     while (NULL != (item = opal_list_remove_first(&ptr->map_apps))) {
         OBJ_RELEASE(item);
     }
@@ -174,6 +183,9 @@ static void jc_des(orte_jobclient_t *ptr)
         OBJ_RELEASE(item);
     }
     OBJ_DESTRUCT(&ptr->red_apps);
+    if (NULL != ptr->am_app) {
+        OBJ_RELEASE(ptr->am_app);
+    }
     if (NULL != ptr->files) {
         opal_argv_free(ptr->files);
     }
@@ -470,6 +482,97 @@ JNIEXPORT void JNICALL Java_org_apache_hadoop_mapred_ompi_OmpiJobClient_addEnv(J
     }
 
     OBJ_RELEASE(op);
+}
+
+static void addAppMaster(int fd, short args, void *cbdata)
+{
+    jobclient_ops_t *op = (jobclient_ops_t*)cbdata;
+    orte_jobclient_t *jc;
+
+    opal_output_verbose(2, mrplus_jobclient_output, "jobclient: addAppMaster called");
+
+    /* get the jobclient object for this instance */
+    jc = (orte_jobclient_t*)opal_pointer_array_get_item(&mrplus_jobclients, op->idx);
+    if (NULL == jc) {
+        /* something is wrong */
+        ORTE_ERROR_LOG(ORTE_ERR_NOT_FOUND);
+        op->active = false;
+        return;
+    }
+
+    opal_output_verbose(2, mrplus_jobclient_output, "jobclient: addAppMaster called for instance %d", op->idx);
+
+
+    /* add app_context to jc, first check if the jc already have am_app */
+    if (NULL != jc->am_app) {
+        ORTE_ERROR_LOG(ORTE_ERR_NOT_FOUND);
+        op->active = false;
+        return;
+    }
+    jc->am_app = op->client->app;
+
+    op->active = false;
+}
+
+JNIEXPORT jboolean JNICALL Java_org_apache_hadoop_mapred_ompi_OmpiJobClient_addAppMaster(JNIEnv *env, jclass obj, jobjectArray args,
+                                                                                      jobjectArray locations, jlong length)
+{
+    int i;
+    orte_app_context_t *app;
+    jstring string;
+    int stringCount;
+    jclass cls = (*env)->GetObjectClass(env, obj);
+    jfieldID fid;
+    jobclient_ops_t *op;
+
+    /* get the field id for this instance */
+    fid = (*env)->GetFieldID(env, cls, "jobID", "I");
+
+    /* setup the operation */
+    op = OBJ_NEW(jobclient_ops_t);
+    op->idx = (*env)->GetIntField(env, obj, fid);
+
+    /* create an app tracker */
+    op->client = OBJ_NEW(orte_jobclient_app_t);
+
+    /* create a mapper app_context */
+    app = OBJ_NEW(orte_app_context_t);
+    op->client->app = app;
+
+    /* add the argv */
+    stringCount = (*env)->GetArrayLength(env, args);
+
+    for (i=0; i < stringCount; i++) {
+        string = (jstring) (*env)->GetObjectArrayElement(env, args, i);
+        opal_output_verbose(2, mrplus_jobclient_output, "jobclient: adding argv[%d]: %s", i,
+                            (*env)->GetStringUTFChars(env, string, 0));
+        opal_argv_append_nosize(&app->argv, (*env)->GetStringUTFChars(env, string, 0));
+    }
+
+    /* set the app name from the first argv */
+    app->app = strdup(app->argv[0]);
+
+    /* indicate we want only one of these launched as the Java
+     * code is going to pass a unique cmd line for each process
+     */
+    app->num_procs = 1;
+
+    /* we will always use the proc session dir as our cwd */
+    app->set_cwd_to_session_dir = true;
+
+    /* execute the request */
+    MRPLUS_JOBCLIENT_STATE(op, addAppMaster);
+    while (op->active) {
+        /* provide a very short quiet period so we 
+         * don't hammer the cpu while we wait
+         */
+        struct timespec tp = {0, 100};
+        nanosleep(&tp, NULL);
+    }
+
+    OBJ_RELEASE(op);
+
+    return JNI_TRUE;
 }
 
 static void addMapper(int fd, short args, void *cbdata)
@@ -1153,6 +1256,134 @@ JNIEXPORT jboolean JNICALL Java_org_apache_hadoop_mapred_ompi_OmpiJobClient_runJ
         nanosleep(&tp, NULL);
     }
     opal_output_verbose(2, mrplus_jobclient_output, "jobclient: runJob instance %d complete", jc->idx);
+
+    opal_pointer_array_set_item(&mrplus_jobclients, jc->idx, NULL);
+    /* don't cleanup for now - need to check that we have
+     * accurate matching of reference counts in objects */
+#if 0
+    OBJ_RELEASE(jc);
+#endif
+
+    return JNI_TRUE;
+}
+
+
+static void runAM(int fd, short args, void *cbdata)
+{
+    jobclient_ops_t *op = (jobclient_ops_t*)cbdata;
+    orte_jobclient_t *jc;
+    int j;
+    char *cpadd, *cpfinal;
+    bool inserted;
+
+    opal_output_verbose(2, mrplus_jobclient_output, "jobclient: runAM called");
+
+    /* get the jobclient object for this instance */
+    jc = (orte_jobclient_t*)opal_pointer_array_get_item(&mrplus_jobclients, op->idx);
+    if (NULL == jc) {
+        /* something is wrong */
+        ORTE_ERROR_LOG(ORTE_ERR_NOT_FOUND);
+        op->active = false;
+        op->idx = -1;
+        return;
+    }
+
+    /* if classpaths were provided, setup to add them */
+    if (NULL != jc->cps) {
+        cpadd = opal_argv_join(jc->cps, ':');
+    }
+
+    opal_pointer_array_add(jc->am->apps, jc->am_app);
+    jc->am->num_apps++;
+    jc->am_app->preload_files = opal_argv_join(jc->files, ',');
+    /* add any classpaths to the cmd line of the app */
+    if (NULL != cpadd) {
+        inserted = false;
+        for (j=0; NULL != jc->am_app->argv[j]; j++) {
+            if (0 == strcmp(jc->am_app->argv[j], "-cp") ||
+                0 == strcmp(jc->am_app->argv[j], "-classpath")) {
+                /* the next argument is the specified classpath - append ours */
+                asprintf(&cpfinal, "%s:%s", jc->am_app->argv[j+1], cpadd);
+                free(jc->am_app->argv[j+1]);
+                jc->am_app->argv[j+1] = cpfinal;
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            /* must add the option */
+            opal_argv_append_nosize(&jc->am_app->argv, "-cp");
+            opal_argv_append_nosize(&jc->am_app->argv, cpadd);
+        }
+    }
+
+    if (NULL != cpadd) {
+        free(cpadd);
+    }
+
+    /* pre-condition any network transports that require it */
+    if (ORTE_SUCCESS != orte_pre_condition_transports(jc->am)) {
+        opal_output(0, "PRECONDITION TRANSPORTS FAILED");
+        op->active = false;
+        op->idx = -1;
+        return;
+    }
+
+    /* mark the job as active */
+    jc->active = true;
+
+    /* pass it back */
+    op->jc = jc;
+
+    /* spawn the mapper job */
+    if (ORTE_SUCCESS != orte_plm.spawn(jc->am)) {
+        opal_output(0, "APPMASTER FAILED TO SPAWN");
+        op->active = false;
+        op->idx = -1;
+        return;
+    }
+    op->active = false;
+}
+
+JNIEXPORT jboolean JNICALL Java_org_apache_hadoop_mapred_ompi_OmpiJobClient_runAM(JNIEnv *env, jclass obj)
+{
+    jclass cls = (*env)->GetObjectClass(env, obj);
+    jfieldID fid;
+    jobclient_ops_t *op;
+    orte_jobclient_t *jc;
+
+    /* get the field id for this instance */
+    fid = (*env)->GetFieldID(env, cls, "jobID", "I");
+
+    /* setup the operation */
+    op = OBJ_NEW(jobclient_ops_t);
+    op->idx = (*env)->GetIntField(env, obj, fid);
+
+    /* execute the spawn */
+    MRPLUS_JOBCLIENT_STATE(op, runAM);
+    while (op->active) {
+        /* provide a very short quiet period so we 
+         * don't hammer the cpu while we wait
+         */
+        struct timespec tp = {0, 100};
+        nanosleep(&tp, NULL);
+    }
+    if (op->idx < 0) {
+        OBJ_RELEASE(op);
+        return JNI_FALSE;
+    }
+    jc = op->jc;
+    OBJ_RELEASE(op);
+
+    /* wait until the job is complete */
+    while (jc->active) {
+        /* provide a very short quiet period so we 
+         * don't hammer the cpu while we wait
+         */
+        struct timespec tp = {0, 100};
+        nanosleep(&tp, NULL);
+    }
+    opal_output_verbose(2, mrplus_jobclient_output, "jobclient: runAM instance %d complete", jc->idx);
 
     opal_pointer_array_set_item(&mrplus_jobclients, jc->idx, NULL);
     /* don't cleanup for now - need to check that we have

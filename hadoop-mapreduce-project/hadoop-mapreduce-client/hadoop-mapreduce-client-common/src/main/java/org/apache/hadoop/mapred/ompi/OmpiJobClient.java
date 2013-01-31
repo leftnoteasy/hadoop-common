@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.mapred.ompi.OmpiCommon;
 
 /* the OmpiJobClient is the replacement for the Hadoop JobClient class
  * and executes the MR procedure using ORTE instead of YARN
@@ -42,11 +41,16 @@ public class OmpiJobClient {
   public native boolean addMapper(String[] args, String[] locations, Long length);
 
   /* JNI interface - add reducer */
-  public native boolean addReducer(String[] args, String[] locations,
-      Long length);
+  public native boolean addReducer(String[] args, String[] locations, Long length);
+  
+  /* JNI interface - add mapper */
+  public native boolean addAppMaster(String[] args, String[] locations, Long length);
 
   /* JNI interface - run MR job, blocks until complete */
   public native boolean runJob();
+  
+  /* JNI interface - run MR job, blocks until complete */
+  public native boolean runAM();
 
   static public native String[] getActiveTrackerNames();
 
