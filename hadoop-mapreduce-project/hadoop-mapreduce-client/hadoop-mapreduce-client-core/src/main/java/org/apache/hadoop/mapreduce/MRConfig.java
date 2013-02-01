@@ -101,4 +101,12 @@ public interface MRConfig {
     "mapreduce.ifile.readahead.bytes";
 
   public static final int DEFAULT_MAPRED_IFILE_READAHEAD_BYTES =
-    4 * 1024 * 1024;}
+    4 * 1024 * 1024;
+  
+  /**
+   * stores path for AppMaster
+   */
+  public static final String APPMASTER_REPORT_PATH = "mapreduce.appmaster.report.path";
+  public static final String DEFAULT_APPMASTER_REPORT_PATH = "/tmp";
+  public static final int MAX_APPMASTER_REPORT_RETRY = 10; 
+}

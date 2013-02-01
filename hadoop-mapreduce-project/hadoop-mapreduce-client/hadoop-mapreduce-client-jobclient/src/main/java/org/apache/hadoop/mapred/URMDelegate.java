@@ -1,10 +1,16 @@
 package org.apache.hadoop.mapred;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.ompi.OmpiJobClient;
+import org.apache.hadoop.mapreduce.MRConfig;
+import org.apache.hadoop.mapreduce.urm.URMUtils;
 import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsResponse;
@@ -35,28 +41,59 @@ import org.apache.hadoop.yarn.util.Records;
 
 public class URMDelegate implements ClientRMProtocol {
   
-  public URMDelegate(Configuration conf) {
+  class AMRunnable extends Thread {
+    OmpiJobClient jc;
     
+    public AMRunnable(OmpiJobClient jc) {
+      this.jc = jc;
+    }
+    
+    public OmpiJobClient getJC() {
+      return jc;
+    }
+
+    @Override
+    public void run() {
+      jc.runAM();
+    }
+  }
+  
+  Map<Integer,AMRunnable> amThreads = null;
+  int lastId = -1;
+  Configuration conf = null;
+  
+  public URMDelegate(Configuration conf) {
+    this.conf = conf;
   }
   
   @Override
   public GetNewApplicationResponse getNewApplication(
       GetNewApplicationRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
-    return null;
+    OmpiJobClient jc = new OmpiJobClient();
+    AMRunnable amThread = new AMRunnable(jc);
+    amThreads.put(jc.getJobId(), amThread);
+    lastId = jc.getJobId();
+    
+    // set response
+    GetNewApplicationResponse newAppResponse = Records.newRecord(GetNewApplicationResponse.class);
+    ApplicationId appId = Records.newRecord(ApplicationId.class);
+    appId.setId(jc.getJobId());
+    newAppResponse.setApplicationId(appId);
+    
+    return newAppResponse;
   }
 
   @Override
   public SubmitApplicationResponse submitApplication(
       SubmitApplicationRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
-    return null;
+    ApplicationSubmissionContext context = request.getApplicationSubmissionContext();
+    submitApplication(context);
+    return Records.newRecord(SubmitApplicationResponse.class);
   }
 
   @Override
   public KillApplicationResponse forceKillApplication(
       KillApplicationRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
     return null;
   }
 
@@ -70,56 +107,78 @@ public class URMDelegate implements ClientRMProtocol {
   @Override
   public GetClusterMetricsResponse getClusterMetrics(
       GetClusterMetricsRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public GetAllApplicationsResponse getAllApplications(
       GetAllApplicationsRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public GetClusterNodesResponse getClusterNodes(GetClusterNodesRequest request)
       throws YarnRemoteException {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public GetQueueInfoResponse getQueueInfo(GetQueueInfoRequest request)
       throws YarnRemoteException {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public GetQueueUserAclsInfoResponse getQueueUserAcls(
       GetQueueUserAclsInfoRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public GetDelegationTokenResponse getDelegationToken(
       GetDelegationTokenRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
     return null;
   }
   
-  String getFileSystemName() {
-    return null;
+  String getFileSystemName() throws IOException {
+    return FileSystem.get(conf).getUri().toString();
   }
 
-  public ApplicationReport getApplicationReport(ApplicationId applicationId) {
-    // TODO Auto-generated method stub
+  public ApplicationReport getApplicationReport(ApplicationId applicationId) throws IOException, InterruptedException {
+    FileSystem fs = FileSystem.get(conf);
+    Path path = URMUtils.getAppReportPath(conf, applicationId.getId());
+    boolean fileExists = false;
+    
+    // retry until file created or exceeds retry limit
+    int nRetry = 0;
+    while (nRetry < MRConfig.MAX_APPMASTER_REPORT_RETRY) {
+      fileExists = fs.exists(path);
+      if (fileExists) {
+        break;
+      }
+      Thread.sleep(1000);
+      nRetry++;
+    }
+    
+    if (fileExists) {
+      // read ApplicationReport out
+      FSDataInputStream is = fs.open(path);
+      ApplicationReport report = URMUtils.loadApplicationReport(is);
+      is.close();
+      return report;
+    }
+    
     return null;
   }
 
   public ApplicationId submitApplication(ApplicationSubmissionContext appContext) {
-    OmpiJobClient jc = new OmpiJobClient();
+    int appId = appContext.getApplicationId().getId();
+    AMRunnable amThread = amThreads.get(appId);
+    
+    if (null == amThread) {
+      throw new RuntimeException("this app not submitted, appid:" + appId);
+    }
+    OmpiJobClient jc = amThread.getJC();
     
     // add files
     String files = "";
@@ -144,24 +203,33 @@ public class URMDelegate implements ClientRMProtocol {
     
     // add and submit it!
     jc.addAppMaster(commands, null, 0L);
-    jc.runAM();
+    
+    // start another thread run this
+    amThread.start();
     
     // create ApplicationId
     ApplicationId ret = Records.newRecord(ApplicationId.class);
     ret.setClusterTimestamp(0L);
     ret.setId(jc.getJobId());
-    
+        
     return ret;
   }
 
   public void killApplication(ApplicationId appId) {
-    // TODO Auto-generated method stub
-    
+    Thread t = amThreads.get(appId.getId());
+    if (t.isAlive()) {
+      t.interrupt();
+    }
+    amThreads.remove(appId.getId());
   }
 
   public ApplicationId getApplicationId() {
-    // TODO Auto-generated method stub
+    if (lastId >= 0) {
+      ApplicationId id = Records.newRecord(ApplicationId.class);
+      id.setId(lastId);
+      return id;
+    }
+    
     return null;
   }
-
 }
