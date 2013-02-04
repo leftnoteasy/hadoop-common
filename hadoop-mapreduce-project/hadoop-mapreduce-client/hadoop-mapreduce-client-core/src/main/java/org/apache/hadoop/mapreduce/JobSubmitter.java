@@ -157,9 +157,11 @@ class JobSubmitter {
     // Create a number of filenames in the JobTracker's fs namespace
     LOG.debug("default FileSystem: " + jtFs.getUri());
     if (jtFs.exists(submitJobDir)) {
-      throw new IOException("Not submitting job. Job directory " + submitJobDir
-          +" already exists!! This is unexpected.Please check what's there in" +
-          " that directory");
+//      throw new IOException("Not submitting job. Job directory " + submitJobDir
+//          +" already exists!! This is unexpected.Please check what's there in" +
+//          " that directory");
+      jtFs.delete(submitJobDir, true);
+      LOG.info("job submission dir already exists, remove it!");
     }
     submitJobDir = jtFs.makeQualified(submitJobDir);
     submitJobDir = new Path(submitJobDir.toUri().getPath());
@@ -372,9 +374,10 @@ class JobSubmitter {
       String queue = conf.get(MRJobConfig.QUEUE_NAME,
           JobConf.DEFAULT_QUEUE_NAME);
       AccessControlList acl = submitClient.getQueueAdmins(queue);
-      conf.set(toFullPropertyName(queue,
-          QueueACL.ADMINISTER_JOBS.getAclName()), acl.getAclString());
-
+      if (null != acl) {
+        conf.set(toFullPropertyName(queue, QueueACL.ADMINISTER_JOBS.getAclName()),
+            acl.getAclString());
+      }
       // removing jobtoken referrals before copying the jobconf to HDFS
       // as the tasks don't need this setting, actually they may break
       // because of it if present as the referral will point to a

@@ -48,6 +48,11 @@ public class OmpiCommon {
     passAlias(aliasHosts);
   }
 
+  /**
+   * init ompi common environment
+   * 0 -- hnp
+   * 1 -- other app
+   */
   public OmpiCommon(int flag) {
     this(flag, null);
   }

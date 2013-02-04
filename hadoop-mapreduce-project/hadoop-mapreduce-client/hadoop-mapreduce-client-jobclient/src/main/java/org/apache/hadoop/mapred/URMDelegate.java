@@ -1,6 +1,7 @@
 package org.apache.hadoop.mapred;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -11,6 +12,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.ompi.OmpiJobClient;
 import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.urm.URMUtils;
+import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsResponse;
@@ -58,7 +60,7 @@ public class URMDelegate implements ClientRMProtocol {
     }
   }
   
-  Map<Integer,AMRunnable> amThreads = null;
+  Map<Integer,AMRunnable> amThreads = new HashMap<Integer, AMRunnable>();
   int lastId = -1;
   Configuration conf = null;
   
@@ -100,8 +102,15 @@ public class URMDelegate implements ClientRMProtocol {
   @Override
   public GetApplicationReportResponse getApplicationReport(
       GetApplicationReportRequest request) throws YarnRemoteException {
-    // TODO Auto-generated method stub
-    return null;
+    GetApplicationReportResponse response = Records.newRecord(GetApplicationReportResponse.class);
+    try {
+      response.setApplicationReport(getApplicationReport(request.getApplicationId()));
+    } catch (IOException e) {
+      throw new YarnException(e);
+    } catch (InterruptedException e) {
+      throw new YarnException(e);
+    }
+    return response;
   }
 
   @Override
@@ -186,7 +195,7 @@ public class URMDelegate implements ClientRMProtocol {
     for (Entry<String, LocalResource> entry : localResources.entrySet()) {
       LocalResource res = entry.getValue();
       if (files != "") {
-        files = files + "," + res.getResource();
+        files = files + "," + res.getResource().getFile();
       }
     }
     jc.addFiles(files);

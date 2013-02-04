@@ -19,6 +19,7 @@ import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.ProtocolSignature;
+import org.apache.hadoop.mapred.ompi.OmpiCommon;
 import org.apache.hadoop.mapreduce.Cluster.JobTrackerStatus;
 import org.apache.hadoop.mapreduce.ClusterMetrics;
 import org.apache.hadoop.mapreduce.Counters;
@@ -46,6 +47,8 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -62,6 +65,7 @@ import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.hadoop.yarn.util.Records;
 
 public class URMRunner implements ClientProtocol {
 
@@ -73,6 +77,7 @@ public class URMRunner implements ClientProtocol {
   private URMClientCache clientCache;
   private Configuration conf;
   private final FileContext defaultFileContext;
+  private OmpiCommon common = null;
 
   /*
    * usually is false unless the jobclient getdelegation token is called. This
@@ -127,6 +132,11 @@ public class URMRunner implements ClientProtocol {
     } catch (UnsupportedFileSystemException ufe) {
       throw new RuntimeException("Error in instantiating YarnClient", ufe);
     }
+    initOmpi();
+  }
+  
+  private void initOmpi() {
+    common = new OmpiCommon(0);
   }
 
   @Private
@@ -193,8 +203,10 @@ public class URMRunner implements ClientProtocol {
 
   @Override
   public JobID getNewJobID() throws IOException, InterruptedException {
-    // TODO, need implement this
-    return null;
+    GetNewApplicationRequest request = Records.newRecord(GetNewApplicationRequest.class);
+    GetNewApplicationResponse response = urmDelegate.getNewApplication(request);
+    JobID jobID = new JobID("orte_job", response.getApplicationId().getId());
+    return jobID;
   }
 
   @Override
@@ -232,14 +244,13 @@ public class URMRunner implements ClientProtocol {
 
   @Override
   public String getStagingAreaDir() throws IOException, InterruptedException {
-    // TODO, need implement this
-    return null;
+    return "/tmp/staging-area";
   }
 
   @Override
   public String getSystemDir() throws IOException, InterruptedException {
-    // TODO, need implement this
-    return null;
+    Path sysDir = new Path(MRJobConfig.JOB_SUBMIT_DIR);
+    return sysDir.toString();
   }
 
   @Override
@@ -538,7 +549,6 @@ public class URMRunner implements ClientProtocol {
 
   @Override
   public AccessControlList getQueueAdmins(String arg0) throws IOException {
-    // TODO, need implement this
     return null;
   }
 

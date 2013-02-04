@@ -7,7 +7,9 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.MRConfig;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.util.Records;
 
 public class URMUtils {
   /**
@@ -25,11 +27,38 @@ public class URMUtils {
     return reportPath;
   }
   
-  public static void saveApplicationReport(DataOutputStream os, ApplicationReport report) {
+  public static void saveApplicationReport(DataOutputStream os, ApplicationReport report) throws IOException {
+    // app id
+    os.writeInt(report.getApplicationId().getId());
+
+    // port
+    os.writeInt(report.getRpcPort());
     
+    // host
+    os.writeInt(report.getHost().length());
+    os.write(report.getHost().getBytes());
   }
   
-  public static ApplicationReport loadApplicationReport(DataInputStream is) {
-    return null;
+  public static ApplicationReport loadApplicationReport(DataInputStream is) throws IOException {
+    ApplicationReport report = Records.newRecord(ApplicationReport.class);
+    int id = is.readInt();
+    int port = is.readInt();
+    int hostLen = is.readInt();
+    byte[] hostBuffer = new byte[hostLen];
+    is.read(hostBuffer);
+    
+    // create ApplicationId and set
+    ApplicationId appId = Records.newRecord(ApplicationId.class);
+    appId.setId(id);
+    report.setApplicationId(appId);
+    
+    // set port
+    report.setRpcPort(port);
+    
+    // create host and set
+    String host = new String(hostBuffer);
+    report.setHost(host);
+    
+    return report;
   }
 }
