@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -73,13 +74,15 @@ public class URMDelegate implements ClientRMProtocol {
       GetNewApplicationRequest request) throws YarnRemoteException {
     OmpiJobClient jc = new OmpiJobClient();
     AMRunnable amThread = new AMRunnable(jc);
-    amThreads.put(jc.getJobId(), amThread);
-    lastId = jc.getJobId();
+    
+    int rid = Math.abs(new Random(System.currentTimeMillis()).nextInt()) % 10000;
+    amThreads.put(rid, amThread);
+    lastId = rid;
     
     // set response
     GetNewApplicationResponse newAppResponse = Records.newRecord(GetNewApplicationResponse.class);
     ApplicationId appId = Records.newRecord(ApplicationId.class);
-    appId.setId(jc.getJobId());
+    appId.setId(rid);
     newAppResponse.setApplicationId(appId);
     
     return newAppResponse;

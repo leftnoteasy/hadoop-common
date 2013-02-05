@@ -24,10 +24,12 @@ import java.security.PrivilegedAction;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobID;
+import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TypeConverter;
 import org.apache.hadoop.mapreduce.v2.api.records.JobId;
@@ -246,8 +248,8 @@ public abstract class RMCommunicator extends AbstractService  {
     allocatorThread.setName("RMCommunicator Allocator");
     allocatorThread.start();
   }
-
-  protected AMRMProtocol createSchedulerProxy() {
+  
+  private AMRMProtocol createYarnSchedulerProxy() {
     final Configuration conf = getConfig();
     final YarnRPC rpc = YarnRPC.create(conf);
     final InetSocketAddress serviceAddr = conf.getSocketAddr(
@@ -287,6 +289,19 @@ public abstract class RMCommunicator extends AbstractService  {
             serviceAddr, conf);
       }
     });
+  }
+  
+  private AMRMProtocol createURMSchedulerProxy() {
+    return new URMScheduler(getConfig(), this.applicationId.getId());
+  }
+
+  protected AMRMProtocol createSchedulerProxy() {
+    Configuration conf = getConfig();
+    if (StringUtils.equalsIgnoreCase(conf.get(MRConfig.FRAMEWORK_NAME, MRConfig.URM_FRAMEWORK_NAME), MRConfig.URM_FRAMEWORK_NAME)) {
+      return createURMSchedulerProxy();
+    } else {
+      return createYarnSchedulerProxy();
+    }
   }
 
   protected abstract void heartbeat() throws Exception;

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Vector;
 
 import org.apache.commons.logging.Log;
@@ -80,6 +81,7 @@ public class URMRunner implements ClientProtocol {
   private Configuration conf;
   private final FileContext defaultFileContext;
   private OmpiCommon common = null;
+  private Map<Integer, JobID> idToJobId = new HashMap<Integer, JobID>();
 
   /*
    * usually is false unless the jobclient getdelegation token is called. This
@@ -207,7 +209,8 @@ public class URMRunner implements ClientProtocol {
   public JobID getNewJobID() throws IOException, InterruptedException {
     GetNewApplicationRequest request = Records.newRecord(GetNewApplicationRequest.class);
     GetNewApplicationResponse response = urmDelegate.getNewApplication(request);
-    JobID jobID = new JobID("orte_job", response.getApplicationId().getId());
+    JobID jobID = new JobID(String.valueOf(System.currentTimeMillis()), response.getApplicationId().getId());
+    this.idToJobId.put(jobID.getId(), jobID);
     return jobID;
   }
 
@@ -246,7 +249,9 @@ public class URMRunner implements ClientProtocol {
 
   @Override
   public String getStagingAreaDir() throws IOException, InterruptedException {
-    return "/tmp/staging-area";
+    String user = UserGroupInformation.getCurrentUser().getShortUserName();
+    Path path = MRApps.getStagingAreaDir(conf, user); 
+    return path.toString();
   }
 
   @Override
@@ -451,8 +456,11 @@ public class URMRunner implements ClientProtocol {
   // setup envs that MRAppMaster needs
   private void setupContainerEnv(Map<String, String> env) {
     // create a containerId
+    JobID mrJobId = this.idToJobId.get(urmDelegate.getApplicationId().getId());
+    org.apache.hadoop.mapreduce.v2.api.records.JobId yarnJobId = TypeConverter.toYarn(mrJobId);
+    
     ApplicationAttemptId aaid = Records.newRecord(ApplicationAttemptId.class);
-    aaid.setApplicationId(urmDelegate.getApplicationId());
+    aaid.setApplicationId(yarnJobId.getAppId());
     ContainerId cid = Records.newRecord(ContainerId.class);
     cid.setApplicationAttemptId(aaid);
     
