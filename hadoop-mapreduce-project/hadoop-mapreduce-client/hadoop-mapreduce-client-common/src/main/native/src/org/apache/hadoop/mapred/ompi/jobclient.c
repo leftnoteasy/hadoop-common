@@ -500,8 +500,10 @@ static void addAppMaster(int fd, short args, void *cbdata)
         return;
     }
 
-    opal_output_verbose(2, mrplus_jobclient_output, "jobclient: addAppMaster called for instance %d", op->idx);
+    /* add env in jc to app */
+    op->client->app->env = jc->addedenv;
 
+    opal_output_verbose(2, mrplus_jobclient_output, "jobclient: addAppMaster called for instance %d", op->idx);
 
     /* add app_context to jc, first check if the jc already have am_app */
     if (NULL != jc->am_app) {
@@ -1296,30 +1298,6 @@ static void runAM(int fd, short args, void *cbdata)
     opal_pointer_array_add(jc->am->apps, jc->am_app);
     jc->am->num_apps++;
     jc->am_app->preload_files = opal_argv_join(jc->files, ',');
-    /* add any classpaths to the cmd line of the app */
-    if (NULL != cpadd) {
-        inserted = false;
-        for (j=0; NULL != jc->am_app->argv[j]; j++) {
-            if (0 == strcmp(jc->am_app->argv[j], "-cp") ||
-                0 == strcmp(jc->am_app->argv[j], "-classpath")) {
-                /* the next argument is the specified classpath - append ours */
-                asprintf(&cpfinal, "%s:%s", jc->am_app->argv[j+1], cpadd);
-                free(jc->am_app->argv[j+1]);
-                jc->am_app->argv[j+1] = cpfinal;
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted) {
-            /* must add the option */
-            opal_argv_append_nosize(&jc->am_app->argv, "-cp");
-            opal_argv_append_nosize(&jc->am_app->argv, cpadd);
-        }
-    }
-
-    if (NULL != cpadd) {
-        free(cpadd);
-    }
 
     /* pre-condition any network transports that require it */
     if (ORTE_SUCCESS != orte_pre_condition_transports(jc->am)) {

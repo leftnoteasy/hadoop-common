@@ -999,6 +999,7 @@ public class MRAppMaster extends CompositeService {
 
   public static void main(String[] args) {
     try {
+      LOG.info("enter mr app master");
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
       String containerIdStr =
           System.getenv(ApplicationConstants.AM_CONTAINER_ID_ENV);
@@ -1038,6 +1039,8 @@ public class MRAppMaster extends CompositeService {
       // SIGTERM I have a chance to write out the job history. I'll be closing
       // the objects myself.
       conf.setBoolean("fs.automatic.close", false);
+      
+      LOG.info("before init and start appmaster");
       initAndStartAppMaster(appMaster, conf, jobUserName);
     } catch (Throwable t) {
       LOG.fatal("Error starting MRAppMaster", t);

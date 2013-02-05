@@ -196,6 +196,8 @@ public class URMDelegate implements ClientRMProtocol {
       LocalResource res = entry.getValue();
       if (files != "") {
         files = files + "," + res.getResource().getFile();
+      } else {
+        files = res.getResource().getFile();
       }
     }
     jc.addFiles(files);
@@ -209,9 +211,18 @@ public class URMDelegate implements ClientRMProtocol {
     
     // add args
     String[] commands = appContext.getAMContainerSpec().getCommands().toArray(new String[0]);
-    
-    // add and submit it!
-    jc.addAppMaster(commands, null, 0L);
+    if (1 == commands.length) {
+      String[] args = commands[0].split(" ");
+      args[0] = "java";
+      jc.addAppMaster(args, null, 0L);
+    } else {
+      throw new YarnException("commands specified in app context should only = 1");
+    }
+    /*
+    String[] args = new String[1];
+    args[0] = "pwd";
+    jc.addAppMaster(args, null, 0L);
+    */
     
     // start another thread run this
     amThread.start();

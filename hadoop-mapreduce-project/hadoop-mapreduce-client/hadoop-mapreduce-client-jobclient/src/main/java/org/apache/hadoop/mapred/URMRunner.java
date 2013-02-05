@@ -50,9 +50,11 @@ import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
@@ -386,17 +388,14 @@ public class URMRunner implements ClientProtocol {
     long logSize = TaskLog.getTaskLogLength(new JobConf(conf));
     String logLevel = jobConf.get(MRJobConfig.MR_AM_LOG_LEVEL,
         MRJobConfig.DEFAULT_MR_AM_LOG_LEVEL);
-    MRApps.addLog4jSystemProperties(logLevel, logSize, vargs);
+    
+    // MRApps.addLog4jSystemProperties(logLevel, logSize, vargs);
 
     vargs.add(conf.get(MRJobConfig.MR_AM_COMMAND_OPTS,
         MRJobConfig.DEFAULT_MR_AM_COMMAND_OPTS));
 
     vargs.add(MRJobConfig.APPLICATION_MASTER_CLASS);
-    vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR
-        + Path.SEPARATOR + ApplicationConstants.STDOUT);
-    vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR
-        + Path.SEPARATOR + ApplicationConstants.STDERR);
-
+    
     Vector<String> vargsFinal = new Vector<String>(8);
     // Final commmand
     StringBuilder mergedCommand = new StringBuilder();
@@ -412,6 +411,7 @@ public class URMRunner implements ClientProtocol {
     // i.e. add { Hadoop jars, job jar, CWD } to classpath.
     Map<String, String> environment = new HashMap<String, String>();
     MRApps.setClasspath(environment, conf);
+    setupContainerEnv(environment);
 
     // Parse distributed cache
     MRApps.setupDistributedCache(jobConf, localResources);
@@ -446,6 +446,21 @@ public class URMRunner implements ClientProtocol {
     appContext.setAMContainerSpec(amContainer); // AM Container
 
     return appContext;
+  }
+  
+  // setup envs that MRAppMaster needs
+  private void setupContainerEnv(Map<String, String> env) {
+    // create a containerId
+    ApplicationAttemptId aaid = Records.newRecord(ApplicationAttemptId.class);
+    aaid.setApplicationId(urmDelegate.getApplicationId());
+    ContainerId cid = Records.newRecord(ContainerId.class);
+    cid.setApplicationAttemptId(aaid);
+    
+    env.put(ApplicationConstants.AM_CONTAINER_ID_ENV, cid.toString());
+    env.put(ApplicationConstants.NM_HOST_ENV, "localhost");
+    env.put(ApplicationConstants.NM_HTTP_PORT_ENV, String.valueOf(8089));
+    env.put(ApplicationConstants.NM_PORT_ENV, String.valueOf(5431));
+    env.put(ApplicationConstants.APP_SUBMIT_TIME_ENV, String.valueOf(0L));
   }
 
   @Override
