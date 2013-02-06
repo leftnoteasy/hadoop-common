@@ -230,12 +230,7 @@ public class URMDelegate implements ClientRMProtocol {
     // start another thread run this
     amThread.start();
     
-    // create ApplicationId
-    ApplicationId ret = Records.newRecord(ApplicationId.class);
-    ret.setClusterTimestamp(0L);
-    ret.setId(jc.getJobId());
-        
-    return ret;
+    return getApplicationId();
   }
 
   public void killApplication(ApplicationId appId) {

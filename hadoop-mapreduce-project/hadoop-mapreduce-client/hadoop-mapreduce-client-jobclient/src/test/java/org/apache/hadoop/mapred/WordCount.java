@@ -26,6 +26,7 @@ import java.util.StringTokenizer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
@@ -143,6 +144,14 @@ public class WordCount extends Configured implements Tool {
                          other_args.size() + " instead of 2.");
       return printUsage();
     }
+    
+    // remove output folder if it exists
+    Path outPath = new Path(other_args.get(1));
+    FileSystem fs = FileSystem.get(conf);
+    if (fs.exists(outPath)) {
+    	fs.delete(outPath, true);
+    }
+    
     FileInputFormat.setInputPaths(conf, other_args.get(0));
     FileOutputFormat.setOutputPath(conf, new Path(other_args.get(1)));
         

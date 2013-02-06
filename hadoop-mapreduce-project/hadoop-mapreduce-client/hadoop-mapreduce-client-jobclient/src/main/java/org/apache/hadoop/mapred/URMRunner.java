@@ -506,15 +506,13 @@ public class URMRunner implements ClientProtocol {
   @Override
   public JobStatus getJobStatus(JobID jobID) throws IOException,
       InterruptedException {
-    // TODO, need implement this
-    return null;
+	  return clientCache.getClient(jobID).getJobStatus(jobID);
   }
 
   @Override
-  public TaskCompletionEvent[] getTaskCompletionEvents(JobID arg0, int arg1,
-      int arg2) throws IOException, InterruptedException {
-    // TODO, need implement this
-    return null;
+  public TaskCompletionEvent[] getTaskCompletionEvents(JobID jobid,
+      int fromEventId, int maxEvents) throws IOException, InterruptedException {
+    return clientCache.getClient(jobid).getTaskCompletionEvents(jobid, fromEventId, maxEvents);
   }
 
   @Override

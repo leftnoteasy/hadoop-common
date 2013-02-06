@@ -11,6 +11,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.util.Records;
 
 public class URMUtils {
@@ -31,6 +32,7 @@ public class URMUtils {
   
   public static ApplicationReport convertApplicationReport(RegisterApplicationMasterRequest request) {
     ApplicationReport report = Records.newRecord(ApplicationReport.class);
+    report.setYarnApplicationState(YarnApplicationState.RUNNING);
     report.setApplicationId(request.getApplicationAttemptId().getApplicationId());
     report.setCurrentApplicationAttemptId(request.getApplicationAttemptId());
     report.setHost(request.getHost());
@@ -49,6 +51,13 @@ public class URMUtils {
     // host
     os.writeInt(report.getHost().length());
     os.write(report.getHost().getBytes());
+    
+    // tracking URL
+    os.writeInt(report.getTrackingUrl().length());
+    os.write(report.getTrackingUrl().getBytes());
+    
+    // state
+    os.writeInt(report.getYarnApplicationState().ordinal());
   }
   
   public static ApplicationReport loadApplicationReport(DataInputStream is) throws IOException {
@@ -70,6 +79,17 @@ public class URMUtils {
     // create host and set
     String host = new String(hostBuffer);
     report.setHost(host);
+    
+    // create tracking URL and set
+    int trackingUrlLen = is.readInt();
+    byte[] trackingUrlBuffer = new byte[trackingUrlLen];
+    is.read(trackingUrlBuffer);
+    String trackingUrl = new String(trackingUrlBuffer);
+    report.setTrackingUrl(trackingUrl);
+    
+    // state
+    int ordinal = is.readInt();
+    report.setYarnApplicationState(YarnApplicationState.values()[ordinal]);
     
     report.setUser(UserGroupInformation.getCurrentUser().getUserName());
     
