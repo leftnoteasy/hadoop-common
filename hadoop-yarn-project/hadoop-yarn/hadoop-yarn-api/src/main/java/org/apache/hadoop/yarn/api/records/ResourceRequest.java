@@ -63,19 +63,20 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
   @Stable
   public static ResourceRequest newInstance(Priority priority, String hostName,
       Resource capability, int numContainers) {
-    return newInstance(priority, hostName, capability, numContainers, true);
+    return newInstance(priority, hostName, capability, numContainers, true, null);
   }
 
   @Public
   @Stable
   public static ResourceRequest newInstance(Priority priority, String hostName,
-      Resource capability, int numContainers, boolean relaxLocality) {
+      Resource capability, int numContainers, boolean relaxLocality, ContainerId existingContainerId) {
     ResourceRequest request = Records.newRecord(ResourceRequest.class);
     request.setPriority(priority);
     request.setResourceName(hostName);
     request.setCapability(capability);
     request.setNumContainers(numContainers);
     request.setRelaxLocality(relaxLocality);
+    request.setExistingContainerId(existingContainerId);
     return request;
   }
 
@@ -238,6 +239,30 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
   @Public
   @Stable
   public abstract void setRelaxLocality(boolean relaxLocality);
+  
+  /**
+   * Get existing container id to be allocated, default is false
+   * @return existing container id to be allocated
+   */
+  @Public
+  public abstract ContainerId getExistingContainerId();
+  
+  /**4
+   * <p>For a request for increase existing container size, set which container to be 
+   * allocated. The container state should be ACQUIRED or RUNNING. Otherwise, this
+   * request will be ignored<p>
+   * 
+   * <p>By default, this field is null. If the field is set, all fields in ResourceRequest
+   * except for capability will be ignored and use existing priority<p>
+   * 
+   * <p>If the field is set, relaxLocality will be always set false. Capability 
+   * of such request should be greater than existing container size. Otherwise, this request
+   * will be ignored<p>
+   * 
+   * @param existingId, existing container id to be allocated to
+   */
+  @Public
+  public abstract void setExistingContainerId(ContainerId existingId);
   
   @Override
   public int hashCode() {
