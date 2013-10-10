@@ -30,6 +30,8 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocolPB;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainersRequest;
@@ -127,5 +129,13 @@ public class ContainerManagementProtocolPBClientImpl implements ContainerManagem
       RPCUtil.unwrapAndThrowException(e);
       return null;
     }
+  }
+
+	@Override
+  public ChangeContainersResourceResponse changeContainersResource(
+      ChangeContainersResourceRequest request) throws YarnException,
+      IOException {
+	  // TODO Auto-generated method stub
+	  return null;
   }
 }

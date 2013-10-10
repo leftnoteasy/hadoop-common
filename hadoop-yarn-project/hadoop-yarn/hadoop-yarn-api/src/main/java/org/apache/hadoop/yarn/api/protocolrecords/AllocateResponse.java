@@ -221,4 +221,18 @@ public abstract class AllocateResponse {
   @Private
   @Unstable
   public abstract void setNMTokens(List<NMToken> nmTokens);
+  
+  @Public
+  public abstract List<Container> getIncreasedContainers();
+
+  @Public
+  public abstract void setIncreasedContainers(
+      List<Container> increasedContainers);
+
+  @Public
+  public abstract List<Container> getDecreasedContainers();
+
+  @Public
+  public abstract void setDecreasedContainers(
+      List<Container> decreasedContainers);
 }

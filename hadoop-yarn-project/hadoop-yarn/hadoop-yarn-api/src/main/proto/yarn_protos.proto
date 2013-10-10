@@ -307,6 +307,16 @@ enum ContainerExitStatusProto {
   DISKS_FAILED = -101;
 }
 
+message ResourceChangeContextProto {
+  optional ContainerIdProto container_id = 1;
+  optional ResourceProto target_capability = 2;
+} 
+
+message ResourceIncreaseContextProto {
+  optional ResourceChangeContextProto context = 1;
+  optional hadoop.common.TokenProto container_token = 2;
+}
+
 ////////////////////////////////////////////////////////////////////////
 ////// From common//////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////

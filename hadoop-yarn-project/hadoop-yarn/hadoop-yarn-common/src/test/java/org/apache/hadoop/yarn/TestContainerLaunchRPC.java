@@ -33,6 +33,8 @@ import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
@@ -164,6 +166,13 @@ public class TestContainerLaunchRPC {
       GetContainerStatusesResponse response =
           GetContainerStatusesResponse.newInstance(list, null);
       return null;
+    }
+
+		@Override
+    public ChangeContainersResourceResponse changeContainersResource(
+        ChangeContainersResourceRequest request) throws YarnException,
+        IOException {
+	    return null;
     }
   }
 }

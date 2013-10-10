@@ -65,9 +65,20 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
       Resource capability, int numContainers) {
     return newInstance(priority, hostName, capability, numContainers, true, null);
   }
+  
+  @Public
+  public static ResourceRequest newInstance(Priority priority, String hostName,
+      Resource capability, int numContainers, boolean relaxLocality) {
+    ResourceRequest request = Records.newRecord(ResourceRequest.class);
+    request.setPriority(priority);
+    request.setResourceName(hostName);
+    request.setCapability(capability);
+    request.setNumContainers(numContainers);
+    request.setRelaxLocality(relaxLocality);
+    return request;
+  }
 
   @Public
-  @Stable
   public static ResourceRequest newInstance(Priority priority, String hostName,
       Resource capability, int numContainers, boolean relaxLocality, ContainerId existingContainerId) {
     ResourceRequest request = Records.newRecord(ResourceRequest.class);
@@ -308,11 +319,24 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
         return false;
     } else if (!priority.equals(other.getPriority()))
       return false;
+    ContainerId existingContainerId = getExistingContainerId();
+    if (existingContainerId == null) {
+    	if (other.getExistingContainerId() != null) {
+    		return false;
+    	}
+    } else if (!existingContainerId.equals(other.getExistingContainerId())) {
+    	return false;
+    }
     return true;
   }
 
   @Override
   public int compareTo(ResourceRequest other) {
+  	// only compare capability if existingContainerId is set
+  	ContainerId existingContainerId = getExistingContainerId();
+  	if (existingContainerId != null) {
+  		return this.getCapability().compareTo(other.getCapability());
+  	}
     int priorityComparison = this.getPriority().compareTo(other.getPriority());
     if (priorityComparison == 0) {
       int hostNameComparison =

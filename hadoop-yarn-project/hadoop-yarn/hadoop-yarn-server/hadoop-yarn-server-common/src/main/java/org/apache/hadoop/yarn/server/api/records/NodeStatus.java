@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 
 
 public interface NodeStatus {
@@ -41,4 +42,9 @@ public interface NodeStatus {
 
   public abstract void setNodeId(NodeId nodeId);
   public abstract void setResponseId(int responseId);
+  
+  public abstract void setNewDecreasedContainers(
+      List<ResourceChangeContext> decreasedContainers);
+
+  public abstract List<ResourceChangeContext> getNewsDecreasedContainers();
 }
