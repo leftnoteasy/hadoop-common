@@ -39,6 +39,8 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterRequest;
@@ -128,6 +130,14 @@ public class TestAMAuthorization {
       buf.reset(containerTokens);
       credentials.readTokenStorageStream(buf);
       return credentials;
+    }
+
+    @Override
+    public ChangeContainersResourceResponse changeContainersResource(
+        ChangeContainersResourceRequest request) throws YarnException,
+        IOException {
+      // TODO Auto-generated method stub
+      return null;
     }
   }
 

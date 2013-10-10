@@ -29,6 +29,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
@@ -116,6 +118,14 @@ public class TestApplicationMasterLauncher {
     @Override
     public GetContainerStatusesResponse getContainerStatuses(
         GetContainerStatusesRequest request) throws YarnException {
+      return null;
+    }
+
+    @Override
+    public ChangeContainersResourceResponse changeContainersResource(
+        ChangeContainersResourceRequest request) throws YarnException,
+        IOException {
+      // TODO Auto-generated method stub
       return null;
     }
   }

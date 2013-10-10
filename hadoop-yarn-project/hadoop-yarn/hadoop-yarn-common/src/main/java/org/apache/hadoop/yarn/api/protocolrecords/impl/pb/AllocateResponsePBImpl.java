@@ -63,6 +63,8 @@ public class AllocateResponsePBImpl extends AllocateResponse {
   private List<Container> allocatedContainers = null;
   private List<NMToken> nmTokens = null;
   private List<ContainerStatus> completedContainersStatuses = null;
+  private List<Container> increasedContainers = null;
+  private List<Container> decreasedContainers = null;
 
   private List<NodeReport> updatedNodes = null;
   private PreemptionMessage preempt;
@@ -133,6 +135,16 @@ public class AllocateResponsePBImpl extends AllocateResponse {
     }
     if (this.preempt != null) {
       builder.setPreempt(convertToProtoFormat(this.preempt));
+    }
+    if (this.increasedContainers != null) {
+      builder.clearIncreasedContainers();
+      Iterable<ContainerProto> iterable = getProtoIterable(this.increasedContainers);
+      builder.addAllIncreasedContainers(iterable);
+    }
+    if (this.decreasedContainers != null) {
+      builder.clearDecreasedContainers();
+      Iterable<ContainerProto> iterable = getProtoIterable(this.decreasedContainers);
+      builder.addAllDecreasedContainers(iterable);
     }
   }
 
@@ -304,6 +316,63 @@ public class AllocateResponsePBImpl extends AllocateResponse {
       builder.clearPreempt();
     }
     this.preempt = preempt;
+  }
+
+  @Override
+  public synchronized List<Container> getIncreasedContainers() {
+    initLocalIncreasedContainerList();
+    return increasedContainers;
+  }
+
+  @Override
+  public synchronized void setIncreasedContainers(
+      List<Container> increasedContainers) {
+    if (increasedContainers == null)
+      return;
+    initLocalIncreasedContainerList();
+    increasedContainers.addAll(increasedContainers);
+  }
+
+  @Override
+  public synchronized List<Container> getDecreasedContainers() {
+    initLocalDecreasedContainerList();
+    return decreasedContainers;
+  }
+
+  @Override
+  public synchronized void setDecreasedContainers(
+      List<Container> decreasedContainers) {
+    if (decreasedContainers == null) {
+      return;
+    }
+    initLocalDecreasedContainerList();
+    decreasedContainers.addAll(decreasedContainers);
+  }
+
+  private synchronized void initLocalIncreasedContainerList() {
+    if (this.increasedContainers != null) {
+      return;
+    }
+    AllocateResponseProtoOrBuilder p = viaProto ? proto : builder;
+    List<ContainerProto> list = p.getIncreasedContainersList();
+    increasedContainers = new ArrayList<Container>();
+
+    for (ContainerProto c : list) {
+      increasedContainers.add(convertFromProtoFormat(c));
+    }
+  }
+
+  private synchronized void initLocalDecreasedContainerList() {
+    if (this.decreasedContainers != null) {
+      return;
+    }
+    AllocateResponseProtoOrBuilder p = viaProto ? proto : builder;
+    List<ContainerProto> list = p.getDecreasedContainersList();
+    decreasedContainers = new ArrayList<Container>();
+
+    for (ContainerProto c : list) {
+      decreasedContainers.add(convertFromProtoFormat(c));
+    }
   }
 
   // Once this is called. updatedNodes will never be null - until a getProto is

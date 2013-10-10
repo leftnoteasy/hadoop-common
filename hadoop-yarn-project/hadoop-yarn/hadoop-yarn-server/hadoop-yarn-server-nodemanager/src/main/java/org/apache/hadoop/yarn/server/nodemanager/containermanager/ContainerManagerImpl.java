@@ -54,6 +54,8 @@ import org.apache.hadoop.service.Service;
 import org.apache.hadoop.service.ServiceStateChangeListener;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
@@ -892,5 +894,13 @@ public class ContainerManagerImpl extends CompositeService implements
 
   public Map<String, ByteBuffer> getAuxServiceMetaData() {
     return this.auxiliaryServices.getMetaData();
+  }
+
+  @Override
+  public ChangeContainersResourceResponse changeContainersResource(
+      ChangeContainersResourceRequest request) throws YarnException,
+      IOException {
+    // TODO Auto-generated method stub
+    return null;
   }
 }

@@ -79,6 +79,8 @@ message AllocateResponseProto {
   optional int32 num_cluster_nodes = 7;
   optional PreemptionMessageProto preempt = 8;
   repeated NMTokenProto nm_tokens = 9;
+  repeated ContainerProto increased_containers = 10;
+  repeated ContainerProto decreased_containers = 11;
 }
 
 //////////////////////////////////////////////////////
@@ -218,4 +220,16 @@ message GetContainerStatusesRequestProto {
 message GetContainerStatusesResponseProto {
   repeated ContainerStatusProto status = 1;
   repeated ContainerExceptionMapProto failed_requests = 2;
+}
+
+message ChangeContainersResourceRequestProto {
+ repeated ResourceIncreaseContextProto increase_containers = 1;
+ repeated ResourceChangeContextProto decrease_containers = 2;
+}
+
+message ChangeContainersResourceResponseProto {
+ repeated ContainerIdProto succeed_increased_containers = 1;
+ repeated ContainerIdProto succeed_decreased_containers = 2;
+ repeated ContainerIdProto failed_increased_containers = 3;
+ repeated ContainerIdProto failed_decreased_containers = 4;
 }
