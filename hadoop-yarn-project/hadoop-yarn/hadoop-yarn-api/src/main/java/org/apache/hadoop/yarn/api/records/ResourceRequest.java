@@ -299,6 +299,24 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
     if (getClass() != obj.getClass())
       return false;
     ResourceRequest other = (ResourceRequest) obj;
+    
+    // we only compare capability field when container id is set
+    ContainerId existingContainerId = getExistingContainerId();
+    if (existingContainerId == null) {
+        if (other.getExistingContainerId() != null) {
+            return false;
+        }
+    } else if (!existingContainerId.equals(other.getExistingContainerId())) {
+        return false;
+    } else {
+      Resource capability = getCapability();
+      if (capability == null) {
+        if (other.getCapability() != null)
+          return false;
+      } else if (!capability.equals(other.getCapability()))
+        return false;
+      return true;
+    }
     Resource capability = getCapability();
     if (capability == null) {
       if (other.getCapability() != null)
@@ -319,14 +337,6 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
         return false;
     } else if (!priority.equals(other.getPriority()))
       return false;
-    ContainerId existingContainerId = getExistingContainerId();
-    if (existingContainerId == null) {
-    	if (other.getExistingContainerId() != null) {
-    		return false;
-    	}
-    } else if (!existingContainerId.equals(other.getExistingContainerId())) {
-    	return false;
-    }
     return true;
   }
 

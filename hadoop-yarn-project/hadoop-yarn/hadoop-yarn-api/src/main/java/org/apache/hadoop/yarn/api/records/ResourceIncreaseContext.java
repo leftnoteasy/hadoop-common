@@ -26,4 +26,21 @@ public abstract class ResourceIncreaseContext {
 
   @Public
   public abstract void setContainerToken(Token token);
+  
+  @Override
+  public boolean equals(Object other) {
+    if (other instanceof ResourceIncreaseContext) {
+      ResourceIncreaseContext ctx = (ResourceIncreaseContext)other;
+      if ((getResourceChangeContext() == null) ^ (ctx == null)) {
+        return false;
+      } else {
+        if (getResourceChangeContext() != null) {
+          return getResourceChangeContext().equals(ctx.getResourceChangeContext());
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
 }

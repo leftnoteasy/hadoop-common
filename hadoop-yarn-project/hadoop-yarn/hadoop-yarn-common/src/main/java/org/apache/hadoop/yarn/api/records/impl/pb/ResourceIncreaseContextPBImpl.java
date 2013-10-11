@@ -40,7 +40,9 @@ public class ResourceIncreaseContextPBImpl extends ResourceIncreaseContext {
     if (this.context != null) {
       return this.context;
     }
-    this.context = convertFromProtoFormat(p.getContext());
+    if (p.hasContext()) {
+      this.context = convertFromProtoFormat(p.getContext());
+    }
     return context;
   }
 
@@ -59,7 +61,9 @@ public class ResourceIncreaseContextPBImpl extends ResourceIncreaseContext {
     if (this.token != null) {
       return this.token;
     }
-    this.token = convertFromProtoFormat(p.getContainerToken());
+    if (p.hasContainerToken()) {
+      this.token = convertFromProtoFormat(p.getContainerToken());
+    }
     return token;
   }
 

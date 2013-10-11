@@ -34,12 +34,14 @@ public class ResourceChangeContextPBImpl extends ResourceChangeContext {
   }
 
   @Override
-  public ContainerId getExistingContainerId(ContainerId existingContainerId) {
+  public ContainerId getExistingContainerId() {
     ResourceChangeContextProtoOrBuilder p = viaProto ? proto : builder;
     if (this.existingContainerId != null) {
       return this.existingContainerId;
     }
-    this.existingContainerId = convertFromProtoFormat(p.getContainerId());
+    if (p.hasContainerId()) {
+      this.existingContainerId = convertFromProtoFormat(p.getContainerId());
+    }
     return this.existingContainerId;
   }
 
@@ -58,7 +60,9 @@ public class ResourceChangeContextPBImpl extends ResourceChangeContext {
     if (this.targetCapability != null) {
       return this.targetCapability;
     }
-    this.targetCapability = convertFromProtoFormat(p.getTargetCapability());
+    if (p.hasTargetCapability()) {
+      this.targetCapability = convertFromProtoFormat(p.getTargetCapability());
+    }
     return this.targetCapability;
   }
 
