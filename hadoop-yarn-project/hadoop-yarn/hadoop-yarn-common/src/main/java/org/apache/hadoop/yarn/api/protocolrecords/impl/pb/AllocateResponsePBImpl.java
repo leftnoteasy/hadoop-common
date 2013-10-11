@@ -330,7 +330,7 @@ public class AllocateResponsePBImpl extends AllocateResponse {
     if (increasedContainers == null)
       return;
     initLocalIncreasedContainerList();
-    increasedContainers.addAll(increasedContainers);
+    this.increasedContainers.addAll(increasedContainers);
   }
 
   @Override
@@ -346,7 +346,7 @@ public class AllocateResponsePBImpl extends AllocateResponse {
       return;
     }
     initLocalDecreasedContainerList();
-    decreasedContainers.addAll(decreasedContainers);
+    this.decreasedContainers.addAll(decreasedContainers);
   }
 
   private synchronized void initLocalIncreasedContainerList() {
