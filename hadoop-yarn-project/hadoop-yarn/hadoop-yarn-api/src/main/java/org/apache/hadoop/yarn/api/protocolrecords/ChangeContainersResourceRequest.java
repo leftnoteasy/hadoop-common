@@ -18,28 +18,28 @@ import org.apache.hadoop.yarn.util.Records;
  */
 @Public
 public abstract class ChangeContainersResourceRequest {
-	@Public
-	public static ChangeContainersResourceRequest newInstance(
-	    List<ResourceIncreaseContext> containersToIncrease,
-	    List<ResourceChangeContext> containersToDecrease) {
-		ChangeContainersResourceRequest request = Records
-		    .newRecord(ChangeContainersResourceRequest.class);
-		request.setContainersToIncrease(containersToIncrease);
-		request.setContainersToDecrease(containersToDecrease);
-		return request;
-	}
+  @Public
+  public static ChangeContainersResourceRequest newInstance(
+      List<ResourceIncreaseContext> containersToIncrease,
+      List<ResourceChangeContext> containersToDecrease) {
+    ChangeContainersResourceRequest request = Records
+        .newRecord(ChangeContainersResourceRequest.class);
+    request.setContainersToIncrease(containersToIncrease);
+    request.setContainersToDecrease(containersToDecrease);
+    return request;
+  }
 
-	@Public
-	public abstract List<ResourceIncreaseContext> getContainersToIncrease();
+  @Public
+  public abstract List<ResourceIncreaseContext> getContainersToIncrease();
 
-	@Public
-	public abstract void setContainersToIncrease(
-	    List<ResourceIncreaseContext> containersToIncrease);
+  @Public
+  public abstract void setContainersToIncrease(
+      List<ResourceIncreaseContext> containersToIncrease);
 
-	@Public
-	public abstract List<ResourceChangeContext> getContainersToDecrease();
+  @Public
+  public abstract List<ResourceChangeContext> getContainersToDecrease();
 
-	@Public
-	public abstract void setContainersToDecrease(
-	    List<ResourceChangeContext> containersToDecrease);
+  @Public
+  public abstract void setContainersToDecrease(
+      List<ResourceChangeContext> containersToDecrease);
 }
