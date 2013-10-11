@@ -58,6 +58,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptS
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptRejectedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
+import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerState;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanContainerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo;
@@ -673,6 +674,11 @@ public class CapacityScheduler
       
       RMContainer excessReservation = assignment.getExcessReservation();
       if (excessReservation != null) {
+      // here is a note for reservation of increasing existing container request
+      // the excessResvervation will always be null when we reserved a increasing
+      // request, when we don't need a increasing request any more, it will be 
+      // removed from reservation list. So we don't need change this part to support
+      // increasing request.
       Container container = excessReservation.getContainer();
       queue.completedContainer(
           clusterResource, assignment.getApplication(), node, 
@@ -884,11 +890,23 @@ public class CapacityScheduler
     if(LOG.isDebugEnabled()){
       LOG.debug("DROP_RESERVATION:" + container.toString());
     }
-    completedContainer(container,
-        SchedulerUtils.createAbnormalContainerStatus(
-            container.getContainerId(),
-            SchedulerUtils.UNRESERVED_CONTAINER),
-        RMContainerEventType.KILL);
+    if (RMContainerState.ACQUIRED == container.getState()
+        || RMContainerState.RUNNING == container.getState()) {
+      // this is a reservation for increasing existing container, simply remove
+      // from reservation list (app and node)
+      ApplicationAttemptId appAttemptId = container.getApplicationAttemptId();
+      FiCaSchedulerApp app = applications.get(appAttemptId);
+      FiCaSchedulerNode node = getNode(container.getReservedNode());
+      app.unreserve(node, container.getContainer().getPriority());
+      node.unreserveResource(app);
+    } else {
+      // for other cases, simply complete container
+      completedContainer(
+          container,
+          SchedulerUtils.createAbnormalContainerStatus(
+              container.getContainerId(), SchedulerUtils.UNRESERVED_CONTAINER),
+          RMContainerEventType.KILL);
+    }
   }
 
   @Override
