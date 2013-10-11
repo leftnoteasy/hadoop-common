@@ -82,6 +82,21 @@ public abstract class AllocateResponse {
     response.setNMTokens(nmTokens);
     return response;
   }
+  
+  @Public
+  public static AllocateResponse newInstance(int responseId,
+      List<ContainerStatus> completedContainers,
+      List<Container> allocatedContainers, List<NodeReport> updatedNodes,
+      Resource availResources, AMCommand command, int numClusterNodes,
+      PreemptionMessage preempt, List<NMToken> nmTokens,
+      List<Container> increasedContainers, List<Container> decreasedContainers) {
+    AllocateResponse response = newInstance(responseId, completedContainers,
+        allocatedContainers, updatedNodes, availResources, command,
+        numClusterNodes, preempt, nmTokens);
+    response.setIncreasedContainers(increasedContainers);
+    response.setDecreasedContainers(decreasedContainers);
+    return response;
+  }
 
   /**
    * If the <code>ResourceManager</code> needs the
