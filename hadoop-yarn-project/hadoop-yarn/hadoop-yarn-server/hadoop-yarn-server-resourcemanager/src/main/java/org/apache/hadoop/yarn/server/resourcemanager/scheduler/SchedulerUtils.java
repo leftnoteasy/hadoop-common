@@ -183,6 +183,11 @@ public class SchedulerUtils {
             maximumResource, incrementResource);
     ask.setCapability(normalized);
   }
+  
+  public static void validateResourceRequest(ResourceRequest resReq,
+      Resource maximumResource) throws InvalidResourceRequestException {
+    validateResourceRequest(resReq, maximumResource, false);
+  }
 
   /**
    * Utility method to validate a resource request, by insuring that the
@@ -192,7 +197,14 @@ public class SchedulerUtils {
    *         request
    */
   public static void validateResourceRequest(ResourceRequest resReq,
-      Resource maximumResource) throws InvalidResourceRequestException {
+      Resource maximumResource, boolean enableChanging)
+      throws InvalidResourceRequestException {
+    // checking if we ready for increasing request
+    if (!enableChanging && resReq.getExistingContainerId() != null) {
+      throw new InvalidResourceRequestException("Invalid resource request"
+          + ", require for increasing container size"
+          + ", but scheduler not support this");
+    }
     if (resReq.getCapability().getMemory() < 0 ||
         resReq.getCapability().getMemory() > maximumResource.getMemory()) {
       throw new InvalidResourceRequestException("Invalid resource request"

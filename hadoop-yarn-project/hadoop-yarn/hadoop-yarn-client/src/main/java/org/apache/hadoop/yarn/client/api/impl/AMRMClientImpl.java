@@ -358,6 +358,8 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
             + joiner.join(req.getNodes()));        
       }
       for (String node : dedupedNodes) {
+        TODO
+        // is this a problem here? need add resource request according to its own locality relaxation?
         addResourceRequest(req.getPriority(), node, req.getCapability(), req,
             true);
       }
@@ -382,6 +384,10 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
 
   @Override
   public synchronized void removeContainerRequest(T req) {
+    TODO YARN-521, 
+    // we need handle increasing request correctly, 
+    // we only store a same request once in our map, we need find it and remove
+   
     Preconditions.checkArgument(req != null,
         "Resource request can not be null.");
     Set<String> allRacks = new HashSet<String>();
@@ -529,7 +535,10 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   }
 
   private void addResourceRequest(Priority priority, String resourceName,
-      Resource capability, T req, boolean relaxLocality) {
+      Resource capability, T req, boolean relaxLocality,
+      // Add a type here to make sure we handle increasing correctly
+      // We need update existing increasing request instead of increse the numContainers
+      ) {
     Map<String, TreeMap<Resource, ResourceRequestInfo>> remoteRequests =
       this.remoteRequestsTable.get(priority);
     if (remoteRequests == null) {

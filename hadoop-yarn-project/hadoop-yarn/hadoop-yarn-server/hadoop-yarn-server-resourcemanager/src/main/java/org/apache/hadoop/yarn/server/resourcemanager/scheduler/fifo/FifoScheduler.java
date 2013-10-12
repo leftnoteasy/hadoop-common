@@ -850,4 +850,9 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
     return DEFAULT_QUEUE.hasAccess(acl, callerUGI);
   }
 
+  @Override
+  public boolean enableChangingContainerSize() {
+    // we don't support it yet :'(
+    return false;
+  }
 }

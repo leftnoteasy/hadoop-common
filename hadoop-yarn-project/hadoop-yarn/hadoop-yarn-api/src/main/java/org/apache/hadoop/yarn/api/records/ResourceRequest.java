@@ -263,12 +263,10 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
    * allocated. The container state should be ACQUIRED or RUNNING. Otherwise, this
    * request will be ignored<p>
    * 
-   * <p>By default, this field is null. If the field is set, all fields in ResourceRequest
-   * except for capability will be ignored and use existing priority<p>
+   * <p>By default, this field is null.<p>
    * 
-   * <p>If the field is set, relaxLocality will be always set false. Capability 
-   * of such request should be greater than existing container size. Otherwise, this request
-   * will be ignored<p>
+   * <p>If the field is set, relaxLocality should be always set false. Capability 
+   * of such request should be the target resource after increased.<p>
    * 
    * @param existingId, existing container id to be allocated to
    */
@@ -299,24 +297,6 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
     if (getClass() != obj.getClass())
       return false;
     ResourceRequest other = (ResourceRequest) obj;
-    
-    // we only compare capability field when container id is set
-    ContainerId existingContainerId = getExistingContainerId();
-    if (existingContainerId == null) {
-        if (other.getExistingContainerId() != null) {
-            return false;
-        }
-    } else if (!existingContainerId.equals(other.getExistingContainerId())) {
-        return false;
-    } else {
-      Resource capability = getCapability();
-      if (capability == null) {
-        if (other.getCapability() != null)
-          return false;
-      } else if (!capability.equals(other.getCapability()))
-        return false;
-      return true;
-    }
     Resource capability = getCapability();
     if (capability == null) {
       if (other.getCapability() != null)
@@ -337,16 +317,19 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
         return false;
     } else if (!priority.equals(other.getPriority()))
       return false;
+    ContainerId eid = getExistingContainerId();
+    if (eid == null) {
+      if (other.getExistingContainerId() != null) {
+        return false;
+      }
+    } else if (!eid.equals(other.getExistingContainerId())) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int compareTo(ResourceRequest other) {
-  	// only compare capability if existingContainerId is set
-  	ContainerId existingContainerId = getExistingContainerId();
-  	if (existingContainerId != null) {
-  		return this.getCapability().compareTo(other.getCapability());
-  	}
     int priorityComparison = this.getPriority().compareTo(other.getPriority());
     if (priorityComparison == 0) {
       int hostNameComparison =

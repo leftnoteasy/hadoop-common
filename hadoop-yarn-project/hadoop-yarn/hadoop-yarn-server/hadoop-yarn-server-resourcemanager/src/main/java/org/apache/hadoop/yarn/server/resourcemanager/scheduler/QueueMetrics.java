@@ -330,8 +330,16 @@ public class QueueMetrics implements MetricsSource {
   }
 
   public void allocateResources(String user, int containers, Resource res) {
-    allocatedContainers.incr(containers);
-    aggregateContainersAllocated.incr(containers);
+    allocateResources(user, containers, res, true);
+  }
+  
+  public void allocateResources(String user, int containers, Resource res,
+      boolean newContainer) {
+    // only increase container allocated metrics when allocate new containers
+    if (newContainer) {
+      allocatedContainers.incr(containers);
+      aggregateContainersAllocated.incr(containers);
+    }
     allocatedMB.incr(res.getMemory() * containers);
     allocatedVCores.incr(res.getVirtualCores() * containers);
     _decrPendingResources(containers, Resources.multiply(res, containers));

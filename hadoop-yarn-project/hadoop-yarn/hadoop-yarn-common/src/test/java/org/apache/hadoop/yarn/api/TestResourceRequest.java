@@ -53,7 +53,7 @@ public class TestResourceRequest {
         .newInstance(ApplicationAttemptId.newInstance(
             ApplicationId.newInstance(1234, 3), 3), 7);
     ResourceRequest rr1 = ResourceRequest.newInstance(Priority.UNDEFINED,
-        "xxx", Resource.newInstance(1023, 3), 3, false, containerId);
+        "", Resource.newInstance(1023, 3), 3, true, containerId);
 
     Assert.assertTrue(rr.equals(rr1));
     

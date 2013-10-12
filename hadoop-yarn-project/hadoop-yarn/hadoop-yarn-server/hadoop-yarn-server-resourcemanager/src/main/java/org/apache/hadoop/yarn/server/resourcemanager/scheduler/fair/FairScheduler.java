@@ -1212,4 +1212,10 @@ public class FairScheduler implements ResourceScheduler {
     return queue.hasAccess(acl, callerUGI);
   }
 
+  @Override
+  public boolean enableChangingContainerSize() {
+    // we don't support it yet :'(
+    return false;
+  }
+
 }

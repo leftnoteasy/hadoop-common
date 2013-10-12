@@ -60,8 +60,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AppSchedulingInfo
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
@@ -93,6 +93,10 @@ public class FiCaSchedulerApp extends SchedulerApplication {
     new HashMap<ContainerId, RMContainer>();
   private List<RMContainer> newlyAllocatedContainers =
     new ArrayList<RMContainer>();
+  private List<Container> newlyIncreasedContainers =
+    new ArrayList<Container>();
+  private List<Container> newlyDecreasedContainers = 
+    new ArrayList<Container>();
 
   final Map<Priority, Map<NodeId, RMContainer>> reservedContainers = 
       new HashMap<Priority, Map<NodeId, RMContainer>>();
@@ -268,7 +272,7 @@ public class FiCaSchedulerApp extends SchedulerApplication {
 
   synchronized public RMContainer allocate(NodeType type, FiCaSchedulerNode node,
       Priority priority, ResourceRequest request, 
-      Container container) {
+      Container container, RMContainer existingContainer) {
 
     if (isStopped) {
       return null;
@@ -280,35 +284,54 @@ public class FiCaSchedulerApp extends SchedulerApplication {
       return null;
     }
     
-    // Create RMContainer
-    RMContainer rmContainer = new RMContainerImpl(container, this
-        .getApplicationAttemptId(), node.getNodeID(), this.rmContext
-        .getDispatcher().getEventHandler(), this.rmContext
-        .getContainerAllocationExpirer());
-
-    // Add it to allContainers list.
-    newlyAllocatedContainers.add(rmContainer);
-    liveContainers.put(container.getId(), rmContainer);    
-
-    // Update consumption and track allocations
-    appSchedulingInfo.allocate(type, node, priority, request, container);
-    Resources.addTo(currentConsumption, container.getResource());
-
-    // Inform the container
-    rmContainer.handle(
-        new RMContainerEvent(container.getId(), RMContainerEventType.START));
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("allocate: applicationAttemptId=" 
-          + container.getId().getApplicationAttemptId() 
-          + " container=" + container.getId() + " host="
-          + container.getNodeId().getHost() + " type=" + type);
+    if (existingContainer == null) {
+      // We're allocate on an existing container, create RMContainer.
+      RMContainer rmContainer = new RMContainerImpl(container, this
+          .getApplicationAttemptId(), node.getNodeID(), this.rmContext
+          .getDispatcher().getEventHandler(), this.rmContext
+          .getContainerAllocationExpirer());
+  
+      // Add it to allContainers list.
+      newlyAllocatedContainers.add(rmContainer);
+      liveContainers.put(container.getId(), rmContainer);    
+  
+      // Update consumption and track allocations
+      appSchedulingInfo.allocate(type, node, priority, request, container);
+      Resources.addTo(currentConsumption, container.getResource());
+  
+      // Inform the container
+      rmContainer.handle(
+          new RMContainerEvent(container.getId(), RMContainerEventType.START));
+  
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("allocate: applicationAttemptId=" 
+            + container.getId().getApplicationAttemptId() 
+            + " container=" + container.getId() + " host="
+            + container.getNodeId().getHost() + " type=" + type);
+      }
+      RMAuditLogger.logSuccess(getUser(), 
+          AuditConstants.ALLOC_CONTAINER, "SchedulerApp", 
+          getApplicationId(), container.getId());
+      
+      return rmContainer;
+    } else {
+      newlyIncreasedContainers.add(container);
+      appSchedulingInfo.allocate(type, node, priority, request, container);
+      // add increment to current comsuption
+      Resources.addTo(currentConsumption, request.getCapability());
+      
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("allocate on existing container: applicationAttemptId="
+            + container.getId().getApplicationAttemptId() + " container="
+            + container.getId() + " host=" + container.getNodeId().getHost()
+            + " type=" + type + " allocated:" + request.getCapability()
+            + " size after allocated:" + container.getResource());
+      }
+      RMAuditLogger.logSuccess(getUser(), 
+          AuditConstants.ALLOC_EXISTING_CONTAINER, "SchedulerApp", 
+          getApplicationId(), container.getId());      
+      return existingContainer;
     }
-    RMAuditLogger.logSuccess(getUser(), 
-        AuditConstants.ALLOC_CONTAINER, "SchedulerApp", 
-        getApplicationId(), container.getId());
-    
-    return rmContainer;
   }
   
   synchronized public List<Container> pullNewlyAllocatedContainers() {
@@ -321,6 +344,20 @@ public class FiCaSchedulerApp extends SchedulerApplication {
     }
     newlyAllocatedContainers.clear();
     return returnContainerList;
+  }
+  
+  synchronized public List<Container> pullNewlyIncreasedContainers() {
+    List<Container> returnList = new ArrayList<Container>();
+    returnList.addAll(newlyIncreasedContainers);
+    newlyIncreasedContainers.clear();
+    return returnList;
+  }
+  
+  synchronized public List<Container> pullNewlyDecreasedContainers() {
+    List<Container> returnList = new ArrayList<Container>();
+    returnList.addAll(newlyDecreasedContainers);
+    newlyDecreasedContainers.clear();
+    return returnList;
   }
 
   public Resource getCurrentConsumption() {
@@ -400,9 +437,15 @@ public class FiCaSchedulerApp extends SchedulerApplication {
   public synchronized Resource getCurrentReservation() {
     return currentReservation;
   }
+  
+  public synchronized RMContainer reserve(FiCaSchedulerNode node,
+      Priority priority, RMContainer rmContainer, Container container) {
+    return reserve(node, priority, rmContainer, container, null);
+  }
 
-  public synchronized RMContainer reserve(FiCaSchedulerNode node, Priority priority,
-      RMContainer rmContainer, Container container) {
+  public synchronized RMContainer reserve(FiCaSchedulerNode node,
+      Priority priority, RMContainer rmContainer, Container container,
+      Resource reservedResource) {
     // Create RMContainer if necessary
     if (rmContainer == null) {
       rmContainer = 
@@ -418,8 +461,9 @@ public class FiCaSchedulerApp extends SchedulerApplication {
       // Note down the re-reservation
       addReReservation(priority);
     }
-    rmContainer.handle(new RMContainerReservedEvent(container.getId(), 
-        container.getResource(), node.getNodeID(), priority));
+
+    rmContainer.handle(new RMContainerReservedEvent(container.getId(),
+        reservedResource, node.getNodeID(), priority));
     
     Map<NodeId, RMContainer> reservedContainers = 
         this.reservedContainers.get(priority);

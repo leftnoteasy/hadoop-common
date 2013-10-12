@@ -90,6 +90,8 @@ public class RMContainerImpl implements RMContainer {
         RMContainerEventType.EXPIRE, new KillTransition())
     .addTransition(RMContainerState.ACQUIRED, RMContainerState.KILLED,
         RMContainerEventType.KILL, new KillTransition())
+    .addTransition(RMContainerState.ACQUIRED, RMContainerState.ACQUIRED,
+        RMContainerEventType.RESERVED, new ContainerReservedTransition())
 
     // Transitions from RUNNING state
     .addTransition(RMContainerState.RUNNING, RMContainerState.COMPLETED,
@@ -100,6 +102,8 @@ public class RMContainerImpl implements RMContainer {
         RMContainerEventType.RELEASED, new KillTransition())
     .addTransition(RMContainerState.RUNNING, RMContainerState.RUNNING,
         RMContainerEventType.EXPIRE)
+    .addTransition(RMContainerState.RUNNING, RMContainerState.RUNNING,
+        RMContainerEventType.RESERVED, new ContainerReservedTransition())
 
     // Transitions from COMPLETED state
     .addTransition(RMContainerState.COMPLETED, RMContainerState.COMPLETED,
@@ -139,6 +143,7 @@ public class RMContainerImpl implements RMContainer {
   private Resource reservedResource;
   private NodeId reservedNode;
   private Priority reservedPriority;
+  private boolean reservedForIncreasing = false;
 
   public RMContainerImpl(Container container,
       ApplicationAttemptId appAttemptId, NodeId nodeId,
@@ -199,6 +204,11 @@ public class RMContainerImpl implements RMContainer {
   }
   
   @Override
+  public boolean reservedForIncreasing() {
+    return reservedForIncreasing;
+  }
+  
+  @Override
   public String toString() {
     return containerId.toString();
   }
@@ -245,6 +255,10 @@ public class RMContainerImpl implements RMContainer {
       container.reservedResource = e.getReservedResource();
       container.reservedNode = e.getReservedNode();
       container.reservedPriority = e.getReservedPriority();
+      if (container.getState() == RMContainerState.RUNNING
+          || container.getState() == RMContainerState.ACQUIRED) {
+        container.reservedForIncreasing = true;
+      }
     }
   }
 
@@ -325,5 +339,4 @@ public class RMContainerImpl implements RMContainer {
       super.transition(container, event);
     }
   }
-
 }

@@ -73,9 +73,9 @@ public class RMServerUtils {
    * requested memory/vcore is non-negative and not greater than max
    */
   public static void validateResourceRequests(List<ResourceRequest> ask,
-      Resource maximumResource) throws InvalidResourceRequestException {
+      Resource maximumResource, boolean enableChanging) throws InvalidResourceRequestException {
     for (ResourceRequest resReq : ask) {
-      SchedulerUtils.validateResourceRequest(resReq, maximumResource);
+      SchedulerUtils.validateResourceRequest(resReq, maximumResource, enableChanging);
     }
   }
 

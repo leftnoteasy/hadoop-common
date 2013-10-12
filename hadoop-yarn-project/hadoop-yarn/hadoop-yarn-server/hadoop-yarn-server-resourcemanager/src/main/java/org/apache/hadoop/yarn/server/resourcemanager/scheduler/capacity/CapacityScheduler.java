@@ -517,6 +517,56 @@ public class CapacityScheduler
 
   private static final Allocation EMPTY_ALLOCATION = 
       new Allocation(EMPTY_CONTAINER_LIST, Resources.createResource(0, 0));
+  
+  private void normalizeIncreasingResourceRequests(
+      List<ResourceRequest> ask) {
+    List<ResourceRequest> newList = new ArrayList<ResourceRequest>();
+    for (ResourceRequest r : ask) {
+      // a increasing request
+      if (r.getExistingContainerId() != null) {
+        RMContainer container = getRMContainer(r.getExistingContainerId());
+        boolean valid = true;
+        if (container == null) {
+          // container with invalid id
+          valid = false;
+          LOG.error("cannot find corresponding container with"
+              + " container id specified in resource request:"
+              + r.getExistingContainerId().toString());
+        } else if (container.getState() != RMContainerState.ACQUIRED
+            && container.getState() != RMContainerState.RUNNING) {
+          valid = false;
+          LOG.error("we cannot increase resource for container with id:"
+              + r.getExistingContainerId().toString()
+              + ", because it's state not RUNNING/ACQUIRED");
+        } else {
+          // ask resource is less or equal than existing resource of this
+          // container
+          if (Resources.lessThanOrEqual(getResourceCalculator(),
+              clusterResource, r.getCapability(), container.getContainer()
+                  .getResource())) {
+            valid = false;
+            LOG.warn("we will ignore the request for container, id="
+                + r.getExistingContainerId().toString()
+                + ", because the size it required is less or equal "
+                + "than existing container size." + " existing:"
+                + container.getContainer().getResource().toString() + " ask:"
+                + r.getCapability().toString());
+          }
+        }
+        if (valid) {
+          // normalize request capability to difference value
+          Resource diffRes = Resources.subtract(r.getCapability(), container
+              .getContainer().getResource());
+          r.setCapability(diffRes);
+          newList.add(r);
+        }
+      } else {
+        newList.add(r);
+      }
+    }
+    ask.clear();
+    ask.addAll(newList);
+  }
 
   @Override
   @Lock(Lock.NoLock.class)
@@ -535,6 +585,9 @@ public class CapacityScheduler
     SchedulerUtils.normalizeRequests(
         ask, getResourceCalculator(), getClusterResources(),
         getMinimumResourceCapability(), maximumAllocation);
+    
+    // Discard invalid increasing asks after normalization
+    normalizeIncreasingResourceRequests(ask);
 
     // Release containers
     for (ContainerId releasedContainerId : release) {
@@ -945,6 +998,12 @@ public class CapacityScheduler
       return false;
     }
     return queue.hasAccess(acl, callerUGI);
+  }
+
+  @Override
+  public boolean enableChangingContainerSize() {
+    // we support it :)
+    return true;
   }
 
 }

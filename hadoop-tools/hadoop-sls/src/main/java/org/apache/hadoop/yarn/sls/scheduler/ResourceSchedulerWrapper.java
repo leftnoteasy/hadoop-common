@@ -860,5 +860,10 @@ public class ResourceSchedulerWrapper implements ResourceScheduler,
       QueueACL acl, String queueName) {
     return scheduler.checkAccess(callerUGI, acl, queueName);
   }
+
+  @Override
+  public boolean enableChangingContainerSize() {
+    return scheduler.enableChangingContainerSize();
+  }
 }
 

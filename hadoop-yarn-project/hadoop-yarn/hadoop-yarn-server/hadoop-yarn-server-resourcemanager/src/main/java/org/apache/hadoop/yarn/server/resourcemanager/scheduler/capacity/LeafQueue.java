@@ -918,11 +918,28 @@ public class LeafQueue implements CSQueue {
   private synchronized CSAssignment 
   assignReservedContainer(FiCaSchedulerApp application, 
       FiCaSchedulerNode node, RMContainer rmContainer, Resource clusterResource) {
-    // Do we still need this reservation?
     Priority priority = rmContainer.getReservedPriority();
-    if (application.getTotalRequiredResources(priority) == 0) {
-      // Release
-      return new CSAssignment(application, rmContainer);
+    
+    if (rmContainer.reservedForIncreasing()) {
+      // We need check if the rmContainer is for increasing existing container.
+      // If yes, we need check it's state, if the state is not running or
+      // acquired, we will no longer keep this reservation
+      if (RMContainerState.ACQUIRED != rmContainer.getState()
+          && RMContainerState.RUNNING != rmContainer.getState()) {
+        LOG.warn("reserved container's state already "
+            + "changed from running/acquired to other, "
+            + "we cannot increase it anymore, "
+            + "we will give up this reservation");
+        unreserve(application, rmContainer.getReservedPriority(), node,
+            rmContainer);
+        return new CSAssignment(true);
+      }
+    } else {
+      // Do we still need this reservation?
+      if (application.getTotalRequiredResources(priority) == 0) {
+        // Release
+        return new CSAssignment(application, rmContainer);
+      }
     }
 
     // Try to assign if we have sufficient resources
@@ -1215,6 +1232,7 @@ public class LeafQueue implements CSQueue {
     return Resources.none();
   }
 
+  // TODO, add checking here??
   boolean canAssign(FiCaSchedulerApp application, Priority priority, 
       FiCaSchedulerNode node, NodeType type, RMContainer reservedContainer) {
 
@@ -1290,13 +1308,14 @@ public class LeafQueue implements CSQueue {
   }
 
   /**
-   * Create <code>ContainerToken</code>, only in secure-mode
+   * Create <code>ContainerToken</code>, only in secure-mode, If newResource not
+   * specified (null), it will use container's resource
    */
   Token createContainerToken(
-      FiCaSchedulerApp application, Container container) {
-    return containerTokenSecretManager.createContainerToken(
-        container.getId(), container.getNodeId(),
-        application.getUser(), container.getResource());
+      FiCaSchedulerApp application, Container container, Resource newResource) {
+    return containerTokenSecretManager.createContainerToken(container.getId(),
+        container.getNodeId(), application.getUser(),
+        newResource == null ? container.getResource() : newResource);
   }
 
   private Resource assignContainer(Resource clusterResource, FiCaSchedulerNode node, 
@@ -1342,8 +1361,15 @@ public class LeafQueue implements CSQueue {
         unreserve(application, priority, node, rmContainer);
       }
 
+      // Refresh container token when we increase or get new containers.
+      Resource newCapability = null;
+      if (request.getExistingContainerId() != null) {
+        newCapability = Resources.add(container.getResource(),
+            request.getCapability());
+        container.setResource(newCapability);
+      }
       Token containerToken =
-          createContainerToken(application, container);
+          createContainerToken(application, container, newCapability);
       if (containerToken == null) {
         // Something went wrong...
         return Resources.none();
@@ -1352,7 +1378,7 @@ public class LeafQueue implements CSQueue {
       
       // Inform the application
       RMContainer allocatedContainer = 
-          application.allocate(type, node, priority, request, container);
+          application.allocate(type, node, priority, request, container, rmContainer);
 
       // Does the application need this resource?
       if (allocatedContainer == null) {
@@ -1376,7 +1402,7 @@ public class LeafQueue implements CSQueue {
       return container.getResource();
     } else {
       // Reserve by 'charging' in advance...
-      reserve(application, priority, node, rmContainer, container);
+      reserve(application, priority, node, rmContainer, container, capability);
 
       LOG.info("Reserved container " + 
           " application=" + application.getApplicationId() +
@@ -1392,7 +1418,7 @@ public class LeafQueue implements CSQueue {
   }
 
   private void reserve(FiCaSchedulerApp application, Priority priority, 
-      FiCaSchedulerNode node, RMContainer rmContainer, Container container) {
+      FiCaSchedulerNode node, RMContainer rmContainer, Container container, Resource capability) {
     // Update reserved metrics if this is the first reservation
     if (rmContainer == null) {
       getMetrics().reserveResource(
@@ -1400,7 +1426,7 @@ public class LeafQueue implements CSQueue {
     }
 
     // Inform the application 
-    rmContainer = application.reserve(node, priority, rmContainer, container);
+    rmContainer = application.reserve(node, priority, rmContainer, container, capability);
     
     // Update the node
     node.reserveResource(application, priority, rmContainer);

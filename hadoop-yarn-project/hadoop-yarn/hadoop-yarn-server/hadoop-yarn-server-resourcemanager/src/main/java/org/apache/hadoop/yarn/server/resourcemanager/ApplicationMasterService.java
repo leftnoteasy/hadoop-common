@@ -102,6 +102,7 @@ public class ApplicationMasterService extends AbstractService implements
   private final AllocateResponse resync =
       recordFactory.newRecordInstance(AllocateResponse.class);
   private final RMContext rmContext;
+  private boolean enableChangeContainerSize;
 
   public ApplicationMasterService(RMContext rmContext, YarnScheduler scheduler) {
     super(ApplicationMasterService.class.getName());
@@ -139,6 +140,11 @@ public class ApplicationMasterService extends AbstractService implements
         false)) {
       refreshServiceAcls(conf, new RMPolicyProvider());
     }
+
+    // Enable changing container size?
+    // TODO, we can give user a option in conf to specifiy if we support change
+    // size even if scheduler support it
+    enableChangeContainerSize = rScheduler.enableChangingContainerSize();
     
     this.server.start();
     this.bindAddress =
@@ -392,7 +398,8 @@ public class ApplicationMasterService extends AbstractService implements
       // sanity check
       try {
         RMServerUtils.validateResourceRequests(ask,
-            rScheduler.getMaximumResourceCapability());
+            rScheduler.getMaximumResourceCapability(),
+            enableChangeContainerSize);
       } catch (InvalidResourceRequestException e) {
         LOG.warn("Invalid resource ask by application " + appAttemptId, e);
         throw e;

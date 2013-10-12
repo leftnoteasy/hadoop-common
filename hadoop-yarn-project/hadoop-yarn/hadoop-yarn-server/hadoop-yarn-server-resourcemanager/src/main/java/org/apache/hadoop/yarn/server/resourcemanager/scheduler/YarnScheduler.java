@@ -149,4 +149,6 @@ public interface YarnScheduler extends EventHandler<SchedulerEvent> {
    */
   boolean checkAccess(UserGroupInformation callerUGI,
       QueueACL acl, String queueName);
+  
+  boolean enableChangingContainerSize();
 }

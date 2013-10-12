@@ -248,6 +248,7 @@ public class AppSchedulingInfo {
    */
   synchronized public void allocate(NodeType type, SchedulerNode node,
       Priority priority, ResourceRequest request, Container container) {
+    boolean newContainer = request.getExistingContainerId() == null;
     if (type == NodeType.NODE_LOCAL) {
       allocateNodeLocal(node, priority, request, container);
     } else if (type == NodeType.RACK_LOCAL) {
@@ -264,7 +265,7 @@ public class AppSchedulingInfo {
     }
     LOG.debug("allocate: user: " + user + ", memory: "
         + request.getCapability());
-    metrics.allocateResources(user, 1, request.getCapability());
+    metrics.allocateResources(user, 1, request.getCapability(), newContainer);
   }
 
   /**
@@ -274,7 +275,7 @@ public class AppSchedulingInfo {
    * @param allocatedContainers
    *          resources allocated to the application
    */
-  synchronized private void allocateNodeLocal( 
+  synchronized private void allocateNodeLocal(
       SchedulerNode node, Priority priority, 
       ResourceRequest nodeLocalRequest, Container container) {
     // Update consumption and track allocations

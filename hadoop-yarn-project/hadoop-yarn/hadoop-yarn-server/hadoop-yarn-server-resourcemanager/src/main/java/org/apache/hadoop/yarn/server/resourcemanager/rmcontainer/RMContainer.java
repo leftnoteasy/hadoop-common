@@ -50,4 +50,5 @@ public interface RMContainer extends EventHandler<RMContainerEvent> {
   
   Priority getReservedPriority();
 
+  boolean reservedForIncreasing();
 }

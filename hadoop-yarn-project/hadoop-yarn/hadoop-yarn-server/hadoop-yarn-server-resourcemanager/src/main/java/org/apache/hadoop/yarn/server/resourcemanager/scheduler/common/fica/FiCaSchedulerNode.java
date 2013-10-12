@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -36,7 +35,6 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
-import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.ReservedIncreasingContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNode;
@@ -56,7 +54,6 @@ public class FiCaSchedulerNode extends SchedulerNode {
   private volatile int numContainers;
 
   private RMContainer reservedContainer;
-  private ReservedIncreasingContainer reservedIncreasingContainer;
   
   /* set of containers that are allocated containers */
   private final Map<ContainerId, RMContainer> launchedContainers = 
@@ -242,13 +239,6 @@ public class FiCaSchedulerNode extends SchedulerNode {
     }
     this.reservedContainer = reservedContainer;
   }
-  
-  public synchronized void reserveResource(
-      SchedulerApplication application, Priority priority, 
-      ReservedIncreasingContainer reservedIncreasingContainer) {
-    // TODO, do stuffs
-    throw new NotImplementedException("");
-  }
 
   public synchronized void unreserveResource(
       SchedulerApplication application) {
@@ -271,34 +261,11 @@ public class FiCaSchedulerNode extends SchedulerNode {
             " on node " + this);
       }
     }
-    
     reservedContainer = null;
-    
-    // check reservedIncreasingContainer
-    if (reservedIncreasingContainer != null) {
-      // TODO, do stuffs
-      throw new NotImplementedException("");
-    }
   }
 
   public synchronized RMContainer getReservedContainer() {
     return reservedContainer;
-  }
-  
-  public synchronized ReservedIncreasingContainer getReservedIncreasingContainer() {
-    return reservedIncreasingContainer;
-  }
-
-  // We added reserved for existing container (increasing), and the RMContainer
-  // is not good for us to describe such reservation,
-  // so we cannot using getReservedContainer and check result to get if
-  // something reserved in the node. I added isReserved here.
-  // Currently, we have two kinds of reservation. 1) reservation for new
-  // container 2) reservation for existing container. We can reserve only one
-  // container, no matter it's new or existing
-  public synchronized boolean isReserved() {
-    // TODO, replace existing reserved checking with this function
-    return reservedContainer != null || reservedIncreasingContainer != null;
   }
 
 }
