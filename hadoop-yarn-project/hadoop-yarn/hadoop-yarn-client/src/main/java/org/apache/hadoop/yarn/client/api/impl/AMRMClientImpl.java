@@ -29,6 +29,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -90,10 +91,10 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
     LinkedHashSet<T> containerRequests;
     
     ResourceRequestInfo(Priority priority, String resourceName,
-        Resource capability, boolean relaxLocality) {
+        Resource capability, boolean relaxLocality,
+        ContainerId existingContainerId) {
       remoteRequest = ResourceRequest.newInstance(priority, resourceName,
-          capability, 0);
-      remoteRequest.setRelaxLocality(relaxLocality);
+          capability, 0, relaxLocality, existingContainerId);
       containerRequests = new LinkedHashSet<T>();
     }
   }
@@ -358,33 +359,30 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
             + joiner.join(req.getNodes()));        
       }
       for (String node : dedupedNodes) {
-        TODO
-        // is this a problem here? need add resource request according to its own locality relaxation?
         addResourceRequest(req.getPriority(), node, req.getCapability(), req,
-            true);
+            true, req.getExistingContainerId());
       }
     }
 
     for (String rack : dedupedRacks) {
       addResourceRequest(req.getPriority(), rack, req.getCapability(), req,
-          true);
+          true, null);
     }
 
     // Ensure node requests are accompanied by requests for
     // corresponding rack
     for (String rack : inferredRacks) {
       addResourceRequest(req.getPriority(), rack, req.getCapability(), req,
-          req.getRelaxLocality());
+          req.getRelaxLocality(), null);
     }
 
     // Off-switch
     addResourceRequest(req.getPriority(), ResourceRequest.ANY, 
-                    req.getCapability(), req, req.getRelaxLocality());
+                    req.getCapability(), req, req.getRelaxLocality(), null);
   }
 
   @Override
   public synchronized void removeContainerRequest(T req) {
-    TODO YARN-521, 
     // we need handle increasing request correctly, 
     // we only store a same request once in our map, we need find it and remove
    
@@ -536,9 +534,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
 
   private void addResourceRequest(Priority priority, String resourceName,
       Resource capability, T req, boolean relaxLocality,
-      // Add a type here to make sure we handle increasing correctly
-      // We need update existing increasing request instead of increse the numContainers
-      ) {
+      ContainerId existingContainerId) {
     Map<String, TreeMap<Resource, ResourceRequestInfo>> remoteRequests =
       this.remoteRequestsTable.get(priority);
     if (remoteRequests == null) {
@@ -556,13 +552,39 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       reqMap = new TreeMap<Resource, ResourceRequestInfo>(
           new ResourceReverseMemoryThenCpuComparator());
       remoteRequests.put(resourceName, reqMap);
+    } else if (existingContainerId != null) {
+      // We only store a same increasing request for an existing container in
+      // reqMap once, scan the list and remove requests with same container-id.
+      Set<Resource> keySetToRemove = new HashSet<Resource>();
+      for (Entry<Resource, ResourceRequestInfo> entry : reqMap.entrySet()) {
+        ContainerId containerId = entry.getValue().remoteRequest.getExistingContainerId(); 
+        if (containerId != null && containerId.equals(existingContainerId)) {
+          keySetToRemove.add(entry.getKey());
+        }
+      }
+      // remove all
+      for (Resource key : keySetToRemove) {
+        reqMap.remove(key);
+      }
     }
-    ResourceRequestInfo resourceRequestInfo = reqMap.get(capability);
-    if (resourceRequestInfo == null) {
-      resourceRequestInfo =
-          new ResourceRequestInfo(priority, resourceName, capability,
-              relaxLocality);
+    
+    ResourceRequestInfo resourceRequestInfo;
+    if (existingContainerId != null) {
+      // If specified existing container id, we don't increase number of
+      // container to ask, in resource request, we directly replace the existing
+      // one
+      resourceRequestInfo = new ResourceRequestInfo(priority, resourceName,
+          capability, relaxLocality, existingContainerId);
       reqMap.put(capability, resourceRequestInfo);
+    } else {
+      // for other cases, we get existing resource request and increase number
+      // containers it has
+      resourceRequestInfo = reqMap.get(capability);
+      if (resourceRequestInfo == null) {
+        resourceRequestInfo = new ResourceRequestInfo(priority, resourceName,
+            capability, relaxLocality, null);
+        reqMap.put(capability, resourceRequestInfo);
+      }
     }
     
     resourceRequestInfo.remoteRequest.setNumContainers(

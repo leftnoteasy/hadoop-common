@@ -200,16 +200,14 @@ public abstract class AMRMClient<T extends AMRMClient.ContainerRequest> extends
                   && (nodes == null || nodes.length == 0)),
               "Can't turn off locality relaxation on a " + 
               "request with no location constraints");
-      Preconditions.checkArgument((existingContainerId != null)
-          && (nodes == null || nodes.length != 1 || racks != null),
+      Preconditions.checkArgument(existingContainerId == null
+          || (nodes != null && nodes.length == 1 && racks == null),
           "Can set only one host when existingId is set"
               + ", and cannot set racks");
-      Preconditions.checkArgument((existingContainerId != null)
-          && relaxLocality, "Cannot set existingId and locality"
-          + " relaxation at the same time.");
-      Preconditions.checkArgument((existingContainerId != null)
-          && relaxLocality, "Cannot set existingId and locality"
-          + " relaxation at the same time.");
+      Preconditions.checkArgument(existingContainerId == null
+          || (!relaxLocality),
+          "Cannot set existingId and locality"
+              + " relaxation at the same time.");
       this.capability = capability;
       this.nodes = (nodes != null ? ImmutableList.copyOf(nodes) : null);
       this.racks = (racks != null ? ImmutableList.copyOf(racks) : null);

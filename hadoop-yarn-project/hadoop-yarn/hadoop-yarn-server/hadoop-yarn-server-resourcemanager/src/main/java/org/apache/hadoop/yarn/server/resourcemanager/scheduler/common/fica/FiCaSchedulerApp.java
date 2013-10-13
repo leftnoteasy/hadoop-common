@@ -269,6 +269,12 @@ public class FiCaSchedulerApp extends SchedulerApplication {
 
     return true;
   }
+  
+  synchronized public RMContainer allocate(NodeType type, FiCaSchedulerNode node,
+      Priority priority, ResourceRequest request, 
+      Container container) {
+    return allocate(type, node, priority, request, container, null);
+  }
 
   synchronized public RMContainer allocate(NodeType type, FiCaSchedulerNode node,
       Priority priority, ResourceRequest request, 
