@@ -187,7 +187,11 @@ Release 2.3.0 - UNRELEASED
 
     MAPREDUCE-5514. Fix TestRMContainerAllocator. (Zhijie Shen via acmurthy) 
 
-Release 2.2.0 - UNRELEASED
+    MAPREDUCE-5102. fix coverage org.apache.hadoop.mapreduce.lib.db and
+    org.apache.hadoop.mapred.lib.db (Aleksey Gorshkov, Andrey Klochkov, and
+    Nathan Roberts via jlowe)
+
+Release 2.2.1 - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -199,7 +203,10 @@ Release 2.2.0 - UNRELEASED
 
   BUG FIXES
 
-Release 2.1.2 - UNRELEASED
+    MAPREDUCE-5569. FloatSplitter is not generating correct splits (Nathan
+    Roberts via jlowe)
+
+Release 2.2.0 - 2013-10-13
 
   INCOMPATIBLE CHANGES
 
@@ -277,6 +284,14 @@ Release 2.1.2 - UNRELEASED
 
     MAPREDUCE-5442. $HADOOP_MAPRED_HOME/$HADOOP_CONF_DIR setting not working on
     Windows. (Yingda Chen via cnauroth)
+
+    MAPREDUCE-5533. Fixed MR speculation code to track any TaskAttempts that
+    aren't heart-beating for a while, so that we can aggressively speculate
+    instead of waiting for task-timeout (Xuan Gong via vinodkv)
+
+    MAPREDUCE-5562. Fixed MR App Master to perform pending tasks like staging-dir
+    cleanup, sending job-end notification correctly when unregister with RM
+    fails. (Zhijie Shen via vinodkv)
 
 Release 2.1.1-beta - 2013-09-23
 
