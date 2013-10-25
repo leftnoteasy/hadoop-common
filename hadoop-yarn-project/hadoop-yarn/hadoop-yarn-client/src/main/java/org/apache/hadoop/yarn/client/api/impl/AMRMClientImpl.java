@@ -152,6 +152,9 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   protected final Set<ResourceRequest> ask = new TreeSet<ResourceRequest>(
       new org.apache.hadoop.yarn.api.records.ResourceRequest.ResourceRequestComparator());
   protected final Set<ContainerId> release = new TreeSet<ContainerId>();
+
+  protected final Map<ContainerId, ResourceRequestInfo> increasingRequestTable 
+    = new TreeMap<ContainerId, ResourceRequestInfo>();
   
   public AMRMClientImpl() {
     super(AMRMClientImpl.class.getName());
@@ -397,16 +400,16 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
     // Update resource requests
     if (req.getNodes() != null) {
       for (String node : new HashSet<String>(req.getNodes())) {
-        decResourceRequest(req.getPriority(), node, req.getCapability(), req);
+        decResourceRequest(req.getPriority(), node, req.getCapability(), req, null);
       }
     }
 
     for (String rack : allRacks) {
-      decResourceRequest(req.getPriority(), rack, req.getCapability(), req);
+      decResourceRequest(req.getPriority(), rack, req.getCapability(), req, null);
     }
 
     decResourceRequest(req.getPriority(), ResourceRequest.ANY,
-        req.getCapability(), req);
+        req.getCapability(), req, null);
   }
 
   @Override
@@ -552,19 +555,18 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       reqMap = new TreeMap<Resource, ResourceRequestInfo>(
           new ResourceReverseMemoryThenCpuComparator());
       remoteRequests.put(resourceName, reqMap);
-    } else if (existingContainerId != null) {
+    }
+    
+    if (existingContainerId != null) {
       // We only store a same increasing request for an existing container in
       // reqMap once, scan the list and remove requests with same container-id.
-      Set<Resource> keySetToRemove = new HashSet<Resource>();
-      for (Entry<Resource, ResourceRequestInfo> entry : reqMap.entrySet()) {
-        ContainerId containerId = entry.getValue().remoteRequest.getExistingContainerId(); 
-        if (containerId != null && containerId.equals(existingContainerId)) {
-          keySetToRemove.add(entry.getKey());
-        }
-      }
-      // remove all
-      for (Resource key : keySetToRemove) {
-        reqMap.remove(key);
+      if (increasingRequestTable.get(existingContainerId) != null) {
+        // get previously added increasing request
+        // use decResource
+        ResourceRequestInfo info = increasingRequestTable.get(existingContainerId);
+        decResourceRequest(info.remoteRequest.getPriority(),
+            info.remoteRequest.getResourceName(),
+            info.remoteRequest.getCapability(), null, existingContainerId);
       }
     }
     
@@ -576,6 +578,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       resourceRequestInfo = new ResourceRequestInfo(priority, resourceName,
           capability, relaxLocality, existingContainerId);
       reqMap.put(capability, resourceRequestInfo);
+      increasingRequestTable.put(existingContainerId, resourceRequestInfo);
     } else {
       // for other cases, we get existing resource request and increase number
       // containers it has
@@ -608,8 +611,9 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
 
   private void decResourceRequest(Priority priority, 
                                    String resourceName,
-                                   Resource capability, 
-                                   T req) {
+                                   Resource capability,
+                                   T req,
+                                   ContainerId existingContainerId) {
     Map<String, TreeMap<Resource, ResourceRequestInfo>> remoteRequests =
       this.remoteRequestsTable.get(priority);
     
@@ -662,6 +666,10 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       if (remoteRequests.size() == 0) {
         remoteRequestsTable.remove(priority);
       }
+    }
+    
+    if (existingContainerId != null) {
+      increasingRequestTable.remove(existingContainerId);
     }
 
     if (LOG.isDebugEnabled()) {

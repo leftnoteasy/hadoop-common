@@ -1355,6 +1355,21 @@ public class LeafQueue implements CSQueue {
         resourceCalculator.computeAvailableContainers(available, capability);
     if (availableContainers > 0) {
       // Allocate...
+      
+      // double check if rmContainer is in right state if it's increasing
+      // request
+      if (request.getExistingContainerId() != null) {
+        // if it's in state not expected, we unreserve it and remove it from
+        // request table
+        if (rmContainer.getState() != RMContainerState.ACQUIRED
+            && rmContainer.getState() != RMContainerState.RUNNING) {
+          unreserve(application, priority, node, rmContainer);
+          application.removeIncreasingRequest(request.getResourceName(),
+              request.getExistingContainerId());
+          // return none resource to indicate this allocation failed
+          return Resources.none();
+        }
+      }
 
       // Did we previously reserve containers at this 'priority'?
       if (rmContainer != null){

@@ -340,6 +340,10 @@ public class FiCaSchedulerApp extends SchedulerApplication {
     }
   }
   
+  synchronized public void removeIncreasingRequest(String resourceName, ContainerId containerId) {
+    appSchedulingInfo.removeIncreasingRequest(resourceName, containerId);
+  }
+  
   synchronized public List<Container> pullNewlyAllocatedContainers() {
     List<Container> returnContainerList = new ArrayList<Container>(
         newlyAllocatedContainers.size());

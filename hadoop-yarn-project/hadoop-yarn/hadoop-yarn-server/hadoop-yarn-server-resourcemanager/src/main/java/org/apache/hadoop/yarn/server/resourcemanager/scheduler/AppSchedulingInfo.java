@@ -35,6 +35,7 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
@@ -178,7 +179,28 @@ public class AppSchedulingInfo {
                 lastRequestContainers)));
       }
     }
+  }  
+  
+  /**
+   * Remove increasing request by specified container-id in all priorities, This
+   * should be used in scenarios which the increasing request is not valid
+   * anymore, like user requested to decrease a container.
+   * 
+   * @param host
+   * @param containerId
+   */
+  synchronized public void removeIncreasingRequest(String host,
+      ContainerId containerId) {
+    for (Priority p : requests.keySet()) {
+      Map<String, ResourceRequest> reqMap = requests.get(p);
+      // we need remove this
+      if (reqMap != null && reqMap.get(host) != null
+          && reqMap.get(host).getExistingContainerId().equals(containerId)) {
+        reqMap.remove(host);
+      }
+    }
   }
+
 
   /**
    * The ApplicationMaster is updating the blacklist

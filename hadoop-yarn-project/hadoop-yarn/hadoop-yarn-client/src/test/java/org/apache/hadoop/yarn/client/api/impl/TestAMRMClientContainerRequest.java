@@ -185,7 +185,13 @@ public class TestAMRMClientContainerRequest {
     verifyResourceRequest(client, requestOverwrite, ResourceRequest.ANY, 1, false, null);
     
     // the old request will be removed (get NullPointerException when querying)
-    verifyResourceRequest(client, request, "host2", 1, true, getContainerId(2));
+    boolean nullException = false;
+    try {
+      verifyResourceRequest(client, request, "host2", 1, true, getContainerId(2));
+    } catch (NullPointerException e) {
+      nullException = true;
+    }
+    Assert.assertTrue(nullException);
   }
   
   @Test (expected = InvalidContainerRequestException.class)
