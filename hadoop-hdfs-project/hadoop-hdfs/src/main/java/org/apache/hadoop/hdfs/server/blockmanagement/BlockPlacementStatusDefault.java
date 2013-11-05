@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,25 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.hadoop.hdfs.server.blockmanagement;
 
-package org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event;
+public class BlockPlacementStatusDefault implements BlockPlacementStatus {
 
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEventType;
-
-public class RMAppAttemptStoredEvent extends RMAppAttemptEvent {
-
-  final Exception storedException;
+  private int requiredRacks = 0;
+  private int currentRacks = 0;
   
-  public RMAppAttemptStoredEvent(ApplicationAttemptId appAttemptId,
-                                 Exception storedException) {
-    super(appAttemptId, RMAppAttemptEventType.ATTEMPT_SAVED);
-    this.storedException = storedException;
+  public BlockPlacementStatusDefault(int currentRacks, int requiredRacks){
+    this.requiredRacks = requiredRacks;
+    this.currentRacks = currentRacks;
   }
   
-  public Exception getStoredException() {
-    return storedException;
+  @Override
+  public boolean isPlacementPolicySatisfied() {
+    return requiredRacks <= currentRacks;
+  }
+
+  @Override
+  public String getErrorDescription() {
+    if (isPlacementPolicySatisfied()) {
+      return null;
+    }
+    return "Block should be additionally replicated on " + 
+        (requiredRacks - currentRacks) + " more rack(s).";
   }
 
 }
