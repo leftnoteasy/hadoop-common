@@ -28,6 +28,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.http.HttpConfig;
+import org.apache.hadoop.http.HttpConfig.Policy;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.metrics2.source.JvmMetrics;
 import org.apache.hadoop.security.SecurityUtil;
@@ -181,7 +182,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
     validateConfigs(conf);
     this.conf = conf;
 
-    haService = new RMHAProtocolService(this);
+    haService = createRMHAProtocolService();
     addService(haService);
     super.serviceInit(conf);
   }
@@ -195,6 +196,10 @@ public class ResourceManager extends CompositeService implements Recoverable {
   protected void setRMStateStore(RMStateStore rmStore) {
     rmStore.setRMDispatcher(rmDispatcher);
     ((RMContextImpl) rmContext).setStateStore(rmStore);
+  }
+
+  protected RMHAProtocolService createRMHAProtocolService() {
+    return new RMHAProtocolService(this);
   }
 
   protected RMContainerTokenSecretManager createContainerTokenSecretManager(
@@ -731,6 +736,10 @@ public class ResourceManager extends CompositeService implements Recoverable {
     webApp = builder.start(new RMWebApp(this));
   }
 
+  void setConf(Configuration configuration) {
+    conf = configuration;
+  }
+
   /**
    * Helper method to create and init {@link #activeServices}. This creates an
    * instance of {@link RMActiveServices} and initializes it.
@@ -931,11 +940,18 @@ public class ResourceManager extends CompositeService implements Recoverable {
       ShutdownHookManager.get().addShutdownHook(
         new CompositeServiceShutdownHook(resourceManager),
         SHUTDOWN_HOOK_PRIORITY);
+      setHttpPolicy(conf);
       resourceManager.init(conf);
       resourceManager.start();
     } catch (Throwable t) {
       LOG.fatal("Error starting ResourceManager", t);
       System.exit(-1);
     }
+  }
+  
+  private static void setHttpPolicy(Configuration conf) {
+    HttpConfig.setPolicy(Policy.fromString(conf.get(
+      YarnConfiguration.YARN_HTTP_POLICY_KEY,
+      YarnConfiguration.YARN_HTTP_POLICY_DEFAULT)));
   }
 }

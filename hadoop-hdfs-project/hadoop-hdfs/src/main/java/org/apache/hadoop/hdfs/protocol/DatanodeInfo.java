@@ -17,10 +17,6 @@
  */
 package org.apache.hadoop.hdfs.protocol;
 
-import static org.apache.hadoop.hdfs.DFSUtil.percent2String;
-
-import java.util.Date;
-
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -31,6 +27,10 @@ import org.apache.hadoop.net.Node;
 import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
+
+import java.util.Date;
+
+import static org.apache.hadoop.hdfs.DFSUtil.percent2String;
 
 /** 
  * This class extends the primary identifier of a Datanode with ephemeral
@@ -44,6 +44,8 @@ public class DatanodeInfo extends DatanodeID implements Node {
   private long dfsUsed;
   private long remaining;
   private long blockPoolUsed;
+  private long cacheCapacity;
+  private long cacheUsed;
   private long lastUpdate;
   private int xceiverCount;
   private String location = NetworkTopology.DEFAULT_RACK;
@@ -82,6 +84,8 @@ public class DatanodeInfo extends DatanodeID implements Node {
     this.dfsUsed = from.getDfsUsed();
     this.remaining = from.getRemaining();
     this.blockPoolUsed = from.getBlockPoolUsed();
+    this.cacheCapacity = from.getCacheCapacity();
+    this.cacheUsed = from.getCacheUsed();
     this.lastUpdate = from.getLastUpdate();
     this.xceiverCount = from.getXceiverCount();
     this.location = from.getNetworkLocation();
@@ -94,6 +98,8 @@ public class DatanodeInfo extends DatanodeID implements Node {
     this.dfsUsed = 0L;
     this.remaining = 0L;
     this.blockPoolUsed = 0L;
+    this.cacheCapacity = 0L;
+    this.cacheUsed = 0L;
     this.lastUpdate = 0L;
     this.xceiverCount = 0;
     this.adminState = null;    
@@ -106,24 +112,32 @@ public class DatanodeInfo extends DatanodeID implements Node {
   
   public DatanodeInfo(DatanodeID nodeID, String location,
       final long capacity, final long dfsUsed, final long remaining,
-      final long blockPoolUsed, final long lastUpdate, final int xceiverCount,
+      final long blockPoolUsed, final long cacheCapacity, final long cacheUsed,
+      final long lastUpdate, final int xceiverCount,
       final AdminStates adminState) {
-    this(nodeID.getIpAddr(), nodeID.getHostName(), nodeID.getStorageID(), nodeID.getXferPort(),
-        nodeID.getInfoPort(), nodeID.getIpcPort(), capacity, dfsUsed, remaining,
-        blockPoolUsed, lastUpdate, xceiverCount, location, adminState);
+    this(nodeID.getIpAddr(), nodeID.getHostName(), nodeID.getStorageID(),
+        nodeID.getXferPort(), nodeID.getInfoPort(), nodeID.getInfoSecurePort(),
+        nodeID.getIpcPort(), capacity, dfsUsed, remaining, blockPoolUsed,
+        cacheCapacity, cacheUsed, lastUpdate, xceiverCount, location,
+        adminState);
   }
 
   /** Constructor */
   public DatanodeInfo(final String ipAddr, final String hostName,
-      final String storageID, final int xferPort, final int infoPort, final int ipcPort,
+      final String storageID, final int xferPort, final int infoPort,
+      final int infoSecurePort, final int ipcPort,
       final long capacity, final long dfsUsed, final long remaining,
-      final long blockPoolUsed, final long lastUpdate, final int xceiverCount,
+      final long blockPoolUsed, final long cacheCapacity, final long cacheUsed,
+      final long lastUpdate, final int xceiverCount,
       final String networkLocation, final AdminStates adminState) {
-    super(ipAddr, hostName, storageID, xferPort, infoPort, ipcPort);
+    super(ipAddr, hostName, storageID, xferPort, infoPort,
+            infoSecurePort, ipcPort);
     this.capacity = capacity;
     this.dfsUsed = dfsUsed;
     this.remaining = remaining;
     this.blockPoolUsed = blockPoolUsed;
+    this.cacheCapacity = cacheCapacity;
+    this.cacheUsed = cacheUsed;
     this.lastUpdate = lastUpdate;
     this.xceiverCount = xceiverCount;
     this.location = networkLocation;
@@ -169,6 +183,42 @@ public class DatanodeInfo extends DatanodeID implements Node {
     return DFSUtil.getPercentRemaining(remaining, capacity);
   }
 
+  /**
+   * @return Amount of cache capacity in bytes
+   */
+  public long getCacheCapacity() {
+    return cacheCapacity;
+  }
+
+  /**
+   * @return Amount of cache used in bytes
+   */
+  public long getCacheUsed() {
+    return cacheUsed;
+  }
+
+  /**
+   * @return Cache used as a percentage of the datanode's total cache capacity
+   */
+  public float getCacheUsedPercent() {
+    return DFSUtil.getPercentUsed(cacheUsed, cacheCapacity);
+  }
+
+  /**
+   * @return Amount of cache remaining in bytes
+   */
+  public long getCacheRemaining() {
+    return cacheCapacity - cacheUsed;
+  }
+
+  /**
+   * @return Cache remaining as a percentage of the datanode's total cache
+   * capacity
+   */
+  public float getCacheRemainingPercent() {
+    return DFSUtil.getPercentRemaining(getCacheRemaining(), cacheCapacity);
+  }
+
   /** The time when this information was accurate. */
   public long getLastUpdate() { return lastUpdate; }
 
@@ -193,6 +243,16 @@ public class DatanodeInfo extends DatanodeID implements Node {
   /** Sets block pool used space */
   public void setBlockPoolUsed(long bpUsed) { 
     this.blockPoolUsed = bpUsed; 
+  }
+
+  /** Sets cache capacity. */
+  public void setCacheCapacity(long cacheCapacity) {
+    this.cacheCapacity = cacheCapacity;
+  }
+
+  /** Sets cache used. */
+  public void setCacheUsed(long cacheUsed) {
+    this.cacheUsed = cacheUsed;
   }
 
   /** Sets time when this information was accurate. */
@@ -224,6 +284,11 @@ public class DatanodeInfo extends DatanodeID implements Node {
     long nonDFSUsed = getNonDfsUsed();
     float usedPercent = getDfsUsedPercent();
     float remainingPercent = getRemainingPercent();
+    long cc = getCacheCapacity();
+    long cr = getCacheRemaining();
+    long cu = getCacheUsed();
+    float cacheUsedPercent = getCacheUsedPercent();
+    float cacheRemainingPercent = getCacheRemainingPercent();
     String lookupName = NetUtils.getHostNameOfIP(getName());
 
     buffer.append("Name: "+ getName());
@@ -250,6 +315,12 @@ public class DatanodeInfo extends DatanodeID implements Node {
     buffer.append("DFS Remaining: " +r+ " ("+StringUtils.byteDesc(r)+")"+"\n");
     buffer.append("DFS Used%: "+percent2String(usedPercent) + "\n");
     buffer.append("DFS Remaining%: "+percent2String(remainingPercent) + "\n");
+    buffer.append("Configured Cache Capacity: "+c+" ("+StringUtils.byteDesc(cc)+")"+"\n");
+    buffer.append("Cache Used: "+cu+" ("+StringUtils.byteDesc(u)+")"+"\n");
+    buffer.append("Cache Remaining: " +cr+ " ("+StringUtils.byteDesc(r)+")"+"\n");
+    buffer.append("Cache Used%: "+percent2String(cacheUsedPercent) + "\n");
+    buffer.append("Cache Remaining%: "+percent2String(cacheRemainingPercent) + "\n");
+
     buffer.append("Last contact: "+new Date(lastUpdate)+"\n");
     return buffer.toString();
   }
@@ -260,6 +331,9 @@ public class DatanodeInfo extends DatanodeID implements Node {
     long c = getCapacity();
     long r = getRemaining();
     long u = getDfsUsed();
+    long cc = getCacheCapacity();
+    long cr = getCacheRemaining();
+    long cu = getCacheUsed();
     buffer.append(getName());
     if (!NetworkTopology.DEFAULT_RACK.equals(location)) {
       buffer.append(" "+location);
@@ -275,6 +349,10 @@ public class DatanodeInfo extends DatanodeID implements Node {
     buffer.append(" " + u + "(" + StringUtils.byteDesc(u)+")");
     buffer.append(" " + percent2String(u/(double)c));
     buffer.append(" " + r + "(" + StringUtils.byteDesc(r)+")");
+    buffer.append(" " + cc + "(" + StringUtils.byteDesc(cc)+")");
+    buffer.append(" " + cu + "(" + StringUtils.byteDesc(cu)+")");
+    buffer.append(" " + percent2String(cu/(double)cc));
+    buffer.append(" " + cr + "(" + StringUtils.byteDesc(cr)+")");
     buffer.append(" " + new Date(lastUpdate));
     return buffer.toString();
   }

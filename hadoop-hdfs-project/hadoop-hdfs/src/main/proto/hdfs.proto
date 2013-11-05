@@ -52,8 +52,9 @@ message DatanodeIDProto {
   required string hostName = 2;  // hostname
   required string storageID = 3; // unique storage id
   required uint32 xferPort = 4;  // data streaming port
-  required uint32 infoPort = 5;  // info server port
+  required uint32 infoPort = 5;  // datanode http port
   required uint32 ipcPort = 6;   // ipc server port
+  optional uint32 infoSecurePort = 7 [default = 0]; // datanode https port
 }
 
 /**
@@ -82,6 +83,8 @@ message DatanodeInfoProto {
   }
 
   optional AdminState adminState = 10 [default = NORMAL];
+  optional uint64 cacheCapacity = 11 [default = 0];
+  optional uint64 cacheUsed = 12 [default = 0];
 }
 
 /**
@@ -126,6 +129,7 @@ message LocatedBlockProto {
                                         // their locations are not part of this object
 
   required hadoop.common.TokenProto blockToken = 5;
+  repeated bool isCached = 6 [packed=true]; // if a location in locs is cached
 }
 
 message DataEncryptionKeyProto {

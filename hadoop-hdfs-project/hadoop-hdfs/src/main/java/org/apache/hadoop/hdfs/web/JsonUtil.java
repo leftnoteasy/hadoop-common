@@ -17,29 +17,11 @@
  */
 package org.apache.hadoop.hdfs.web;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
-import org.apache.hadoop.fs.ContentSummary;
-import org.apache.hadoop.fs.FileChecksum;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.MD5MD5CRC32CastagnoliFileChecksum;
-import org.apache.hadoop.fs.MD5MD5CRC32GzipFileChecksum;
-import org.apache.hadoop.fs.MD5MD5CRC32FileChecksum;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSUtil;
-import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
+import org.apache.hadoop.hdfs.protocol.*;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo.AdminStates;
-import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
-import org.apache.hadoop.hdfs.protocol.LocatedBlock;
-import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.namenode.INodeId;
@@ -49,6 +31,11 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.StringUtils;
 import org.mortbay.util.ajax.JSON;
+
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.util.*;
 
 /** JSON Utilities */
 public class JsonUtil {
@@ -295,12 +282,15 @@ public class JsonUtil {
     m.put("storageID", datanodeinfo.getStorageID());
     m.put("xferPort", datanodeinfo.getXferPort());
     m.put("infoPort", datanodeinfo.getInfoPort());
+    m.put("infoSecurePort", datanodeinfo.getInfoSecurePort());
     m.put("ipcPort", datanodeinfo.getIpcPort());
 
     m.put("capacity", datanodeinfo.getCapacity());
     m.put("dfsUsed", datanodeinfo.getDfsUsed());
     m.put("remaining", datanodeinfo.getRemaining());
     m.put("blockPoolUsed", datanodeinfo.getBlockPoolUsed());
+    m.put("cacheCapacity", datanodeinfo.getCacheCapacity());
+    m.put("cacheUsed", datanodeinfo.getCacheUsed());
     m.put("lastUpdate", datanodeinfo.getLastUpdate());
     m.put("xceiverCount", datanodeinfo.getXceiverCount());
     m.put("networkLocation", datanodeinfo.getNetworkLocation());
@@ -308,8 +298,33 @@ public class JsonUtil {
     return m;
   }
 
+  private static int getInt(Map<?, ?> m, String key, final int defaultValue) {
+    Object value = m.get(key);
+    if (value == null) {
+      return defaultValue;
+    }
+    return (int) (long) (Long) value;
+  }
+
+  private static long getLong(Map<?, ?> m, String key, final long defaultValue) {
+    Object value = m.get(key);
+    if (value == null) {
+      return defaultValue;
+    }
+    return (long) (Long) value;
+  }
+
+  private static String getString(Map<?, ?> m, String key,
+      final String defaultValue) {
+    Object value = m.get(key);
+    if (value == null) {
+      return defaultValue;
+    }
+    return (String) value;
+  }
+
   /** Convert a Json map to an DatanodeInfo object. */
-  private static DatanodeInfo toDatanodeInfo(final Map<?, ?> m) {
+  static DatanodeInfo toDatanodeInfo(final Map<?, ?> m) {
     if (m == null) {
       return null;
     }
@@ -320,16 +335,19 @@ public class JsonUtil {
         (String)m.get("storageID"),
         (int)(long)(Long)m.get("xferPort"),
         (int)(long)(Long)m.get("infoPort"),
+        getInt(m, "infoSecurePort", 0),
         (int)(long)(Long)m.get("ipcPort"),
 
-        (Long)m.get("capacity"),
-        (Long)m.get("dfsUsed"),
-        (Long)m.get("remaining"),
-        (Long)m.get("blockPoolUsed"),
-        (Long)m.get("lastUpdate"),
-        (int)(long)(Long)m.get("xceiverCount"),
-        (String)m.get("networkLocation"),
-        AdminStates.valueOf((String)m.get("adminState")));
+        getLong(m, "capacity", 0l),
+        getLong(m, "dfsUsed", 0l),
+        getLong(m, "remaining", 0l),
+        getLong(m, "blockPoolUsed", 0l),
+        getLong(m, "cacheCapacity", 0l),
+        getLong(m, "cacheUsed", 0l),
+        getLong(m, "lastUpdate", 0l),
+        getInt(m, "xceiverCount", 0),
+        getString(m, "networkLocation", ""),
+        AdminStates.valueOf(getString(m, "adminState", "NORMAL")));
   }
 
   /** Convert a DatanodeInfo[] to a Json array. */

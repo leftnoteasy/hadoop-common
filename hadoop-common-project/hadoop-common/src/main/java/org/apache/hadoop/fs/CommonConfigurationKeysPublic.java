@@ -240,6 +240,14 @@ public class CommonConfigurationKeysPublic {
   public static final String  HADOOP_SECURITY_GROUPS_CACHE_SECS =
     "hadoop.security.groups.cache.secs";
   /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
+  public static final long HADOOP_SECURITY_GROUPS_CACHE_SECS_DEFAULT =
+    300;
+  /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
+  public static final String HADOOP_SECURITY_GROUPS_CACHE_WARN_AFTER_MS =
+    "hadoop.security.groups.cache.warn.after.ms";
+  public static final long HADOOP_SECURITY_GROUPS_CACHE_WARN_AFTER_MS_DEFAULT =
+    5000;
+  /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
   public static final String  HADOOP_SECURITY_AUTHENTICATION =
     "hadoop.security.authentication";
   /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
@@ -264,5 +272,9 @@ public class CommonConfigurationKeysPublic {
   /** Default value for HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN */
   public static final int HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN_DEFAULT =
           60;
+
+  // HTTP policies to be used in configuration
+  public static final String HTTP_POLICY_HTTP_ONLY = "HTTP_ONLY";
+  public static final String HTTP_POLICY_HTTPS_ONLY = "HTTPS_ONLY";
 }
 

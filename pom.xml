@@ -143,7 +143,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-antrun-plugin</artifactId>
-          <version>1.6</version>
+          <version>1.7</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -175,7 +175,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
                   <pluginExecutionFilter>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
-                    <versionRange>[1.6,)</versionRange>
+                    <versionRange>[1.7,)</versionRange>
                     <goals>
                       <goal>run</goal>
                     </goals>
@@ -556,6 +556,19 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
               <generateHtml>${cloverGenHtml}</generateHtml>
               <generateXml>${cloverGenXml}</generateXml>
               <generateHistorical>${cloverGenHistorical}</generateHistorical>
+              <excludes>
+                <exclude>**/examples/**/*.java</exclude>
+                <exclude>**/hamlet/*.java</exclude>
+                <exclude>**/ha/proto/*.java</exclude>
+                <exclude>**/protocol/proto/*.java</exclude>
+                <exclude>**/compiler/generated/*.java</exclude>
+                <exclude>**/protobuf/*.java</exclude>
+                <exclude>**/v2/proto/*.java</exclude>
+                <exclude>**/yarn/proto/*.java</exclude>
+                <exclude>**/security/proto/*.java</exclude>
+                <exclude>**/tools/proto/*.java</exclude>
+                <exclude>**/hs/proto/*.java</exclude>
+              </excludes>
             </configuration>
             <executions>
               <execution>

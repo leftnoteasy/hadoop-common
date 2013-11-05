@@ -26,14 +26,17 @@ import javax.xml.bind.annotation.XmlTransient;
 
 import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Times;
+import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 
 @XmlRootElement(name = "app")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -70,6 +73,9 @@ public class AppInfo {
   protected long elapsedTime;
   protected String amContainerLogs;
   protected String amHostHttpAddress;
+  protected int allocatedMB;
+  protected int allocatedVCores;
+  protected int runningContainers;
 
   public AppInfo() {
   } // JAXB needs this
@@ -91,10 +97,13 @@ public class AppInfo {
       this.trackingUI = this.trackingUrlIsNotReady ? "UNASSIGNED" : (app
           .getFinishTime() == 0 ? "ApplicationMaster" : "History");
       if (!trackingUrlIsNotReady) {
-        this.trackingUrl = join(HttpConfig.getSchemePrefix(), trackingUrl);
+        this.trackingUrl =
+            WebAppUtils.getURLWithScheme(HttpConfig.getSchemePrefix(),
+                trackingUrl);
+        this.trackingUrlPretty = this.trackingUrl;
+      } else {
+        this.trackingUrlPretty = "UNASSIGNED";
       }
-      this.trackingUrlPretty = trackingUrlIsNotReady ? "UNASSIGNED" : join(
-          HttpConfig.getSchemePrefix(), trackingUrl);
       this.applicationId = app.getApplicationId();
       this.applicationType = app.getApplicationType();
       this.appIdNum = String.valueOf(app.getApplicationId().getId());
@@ -127,6 +136,15 @@ public class AppInfo {
                 "/", app.getUser());
             this.amContainerLogs = url;
             this.amHostHttpAddress = masterContainer.getNodeHttpAddress();
+          }
+          
+          ApplicationResourceUsageReport resourceReport = attempt
+              .getApplicationResourceUsageReport();
+          if (resourceReport != null) {
+            Resource usedResources = resourceReport.getUsedResources();
+            allocatedMB = usedResources.getMemory();
+            allocatedVCores = usedResources.getVirtualCores();
+            runningContainers = resourceReport.getNumUsedContainers();
           }
         }
       }
@@ -220,5 +238,17 @@ public class AppInfo {
   public String getApplicationType() {
     return this.applicationType;
   }
-
+  
+  public int getRunningContainers() {
+    return this.runningContainers;
+  }
+  
+  public int getAllocatedMB() {
+    return this.allocatedMB;
+  }
+  
+  public int getAllocatedVCores() {
+    return this.allocatedVCores;
+  }
+  
 }

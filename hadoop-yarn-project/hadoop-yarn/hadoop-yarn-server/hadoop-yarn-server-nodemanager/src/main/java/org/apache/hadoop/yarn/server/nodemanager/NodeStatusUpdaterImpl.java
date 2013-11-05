@@ -341,7 +341,9 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
           container.cloneAndGetContainerStatus();
       containersStatuses.add(containerStatus);
       ++numActiveContainers;
-      LOG.info("Sending out status for container: " + containerStatus);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Sending out status for container: " + containerStatus);
+      }
 
       if (containerStatus.getState() == ContainerState.COMPLETE) {
         // Remove
@@ -501,7 +503,8 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
                 .getContainersToCleanup();
             if (!containersToCleanup.isEmpty()) {
               dispatcher.getEventHandler().handle(
-                  new CMgrCompletedContainersEvent(containersToCleanup));
+                  new CMgrCompletedContainersEvent(containersToCleanup,
+                    CMgrCompletedContainersEvent.Reason.BY_RESOURCEMANAGER));
             }
             List<ApplicationId> appsToCleanup =
                 response.getApplicationsToCleanup();

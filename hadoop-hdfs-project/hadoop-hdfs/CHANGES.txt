@@ -115,15 +115,81 @@ Trunk (Unreleased)
     HDFS-3358. Specify explicitly that the NN UI status total is talking
     of persistent objects on heap. (harsh)
 
-    HDFS-4633 TestDFSClientExcludedNodes fails sporadically if excluded nodes
-    cache expires too quickly  (Chris Nauroth via Sanjay)
-
     HDFS-4904. Remove JournalService. (Arpit Agarwal via cnauroth)
 
     HDFS-5041. Add the time of last heartbeat to dead server Web UI (Shinichi
     Yamashita via brandonli)
 
+    HDFS-5049.  Add JNI mlock support.  (Andrew Wang via Colin Patrick McCabe)
+
+    HDFS-5051.  Propagate cache status information from the DataNode to the
+    NameNode  (Andrew Wang via Colin Patrick McCabe)
+
+    HDFS-5052.  Add cacheRequest/uncacheRequest support to NameNode.
+    (contributed by Colin Patrick McCabe)
+
+    HDFS-5050.  Add DataNode support for mlock and munlock
+    (Andrew Wang via Colin Patrick McCabe)
+
+    HDFS-5141. Add cache status information to datanode heartbeat.
+    (Contributed by Andrew Wang)
+
+    HDFS-5121. Add RPCs for creating and manipulating cache pools.
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5163. Miscellaneous cache pool RPC fixes.  (Contributed by Colin
+    Patrick McCabe)
+
+    HDFS-5120. Add command-line support for manipulating cache pools.
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5158. Add command-line support for manipulating cache directives.
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5053. NameNode should invoke DataNode APIs to coordinate caching.
+    (Andrew Wang)
+
+    HDFS-5197. Document dfs.cachereport.intervalMsec in hdfs-default.xml.
+    (cnauroth)
+
+    HDFS-5213. Separate PathBasedCacheEntry and PathBasedCacheDirectiveWithId.
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5236. Change PathBasedCacheDirective APIs to be a single value
+    rather than batch. (Contributed by Andrew Wang)
+
+    HDFS-5191. Revisit zero-copy API in FSDataInputStream to make it more
+    intuitive.  (Contributed by Colin Patrick McCabe)
+
+    HDFS-5119. Persist CacheManager state in the edit log.
+    (Contributed by Andrew Wang)
+
+    HDFS-5190. Move cache pool related CLI commands to CacheAdmin.
+    (Contributed by Andrew Wang)
+
+    HDFS-5304. Expose if a block replica is cached in getFileBlockLocations.
+    (Contributed by Andrew Wang)
+
+    HDFS-5224. Refactor PathBasedCache* methods to use a Path rather than a
+    String. (cnauroth)
+
+    HDFS-5358. Add replication field to PathBasedCacheDirective.
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5359. Allow LightWeightGSet#Iterator to remove elements.
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5096. Automatically cache new data added to a cached path.
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5378. In CacheReport, don't send genstamp and length on the wire
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5386. Add feature documentation for datanode caching.
+    (Colin Patrick McCabe via cnauroth)
+
   OPTIMIZATIONS
+    HDFS-5349. DNA_CACHE and DNA_UNCACHE should be by blockId only. (cmccabe)
 
   BUG FIXES
     HADOOP-9635 Fix potential Stack Overflow in DomainSocket.c (V. Karthik Kumar
@@ -241,6 +307,53 @@ Trunk (Unreleased)
     HDFS-4366. Block Replication Policy Implementation May Skip Higher-Priority
     Blocks for Lower-Priority Blocks (Derek Dagit via kihwal)
 
+    HDFS-5169. hdfs.c: translateZCRException: null pointer deref when
+    translating some exceptions.  (Contributed by Colin Patrick McCabe)
+
+    HDFS-5198. NameNodeRpcServer must not send back DNA_FINALIZE in reply to a
+    cache report.  (Contributed by Colin Patrick McCabe)
+
+    HDFS-5195. Prevent passing null pointer to mlock and munlock. (cnauroth)
+
+    HDFS-5201. NativeIO: consolidate getrlimit into NativeIO#getMemlockLimit
+    (Contributed by Colin Patrick McCabe)
+
+    HDFS-5210. Fix some failing unit tests on HDFS-4949 branch.
+    (Contributed by Andrew Wang)
+
+    HDFS-5266. ElasticByteBufferPool#Key does not implement equals. (cnauroth)
+
+    HDFS-5309. Fix failing caching unit tests. (Andrew Wang)
+
+    HDFS-5314. Do not expose CachePool type in AddCachePoolOp (Colin Patrick
+    McCabe)
+
+    HDFS-5348. Fix error message when dfs.datanode.max.locked.memory is
+    improperly configured. (Colin Patrick McCabe)
+
+    HDFS-5373. hdfs cacheadmin -addDirective short usage does not mention
+    -replication parameter. (cnauroth)
+
+    HDFS-5383. fix broken caching unit tests. (Andrew Wang)
+
+    HDFS-5388. Loading fsimage fails to find cache pools during namenode
+    startup.  (Chris Nauroth via Colin Patrick McCabe)
+
+    HDFS-5203. Concurrent clients that add a cache directive on the same path
+    may prematurely uncache from each other.  (Chris Nauroth via Colin Patrick
+    McCabe)
+
+    HDFS-5385. Caching RPCs are AtMostOnce, but do not persist client ID and
+    call ID to edit log.  (Chris Nauroth via Colin Patrick McCabe)
+
+    HDFS-5404. Resolve regressions in Windows compatibility on HDFS-4949
+    branch. (Chris Nauroth via Andrew Wang)
+
+    HDFS-5405. Fix possible RetryCache hang for caching RPC handlers in
+    FSNamesystem. (wang)
+
+    HDFS-5419. Fixup test-patch.sh warnings on HDFS-4949 branch. (wang)
+
 Release 2.3.0 - UNRELEASED
 
   INCOMPATIBLE CHANGES
@@ -253,17 +366,23 @@ Release 2.3.0 - UNRELEASED
     HDFS-4953. Enable HDFS local reads via mmap.
     (Colin Patrick McCabe via wang).
 
+    HDFS-5342. Provide more information in the FSNamesystem JMX interfaces.
+    (Haohui Mai via jing9)
+
+    HDFS-5334. Implement dfshealth.jsp in HTML pages. (Haohui Mai via jing9)
+
+    HDFS-5379. Update links to datanode information in dfshealth.html. (Haohui
+    Mai via jing9)
+
+    HDFS-5382. Implement the UI of browsing filesystems in HTML 5 page. (Haohui
+    Mai via jing9)
+
   IMPROVEMENTS
 
-    HDFS-4657.  Limit the number of blocks logged by the NN after a block
-    report to a configurable value.  (Aaron T. Myers via Colin Patrick
-    McCabe)
+    HDFS-5267. Remove volatile from LightWeightHashSet. (Junping Du via llu)
 
     HDFS-4278. Log an ERROR when DFS_BLOCK_ACCESS_TOKEN_ENABLE config is
     disabled but security is turned on. (Kousuke Saruta via harsh)
-
-    HDFS-4817.  Make HDFS advisory caching configurable on a per-file basis.
-    (Colin Patrick McCabe)
 
     HDFS-5004. Add additional JMX bean for NameNode status data
     (Trevor Lorimer via cos)
@@ -306,18 +425,42 @@ Release 2.3.0 - UNRELEASED
     HDFS-4512. Cover package org.apache.hadoop.hdfs.server.common with tests.
     (Vadim Bondarev via kihwal)
 
+    HDFS-4510. Cover classes ClusterJspHelper/NamenodeJspHelper with unit
+    tests. (Andrey Klochkov via kihwal)
+
+    HDFS-5323.  Remove some deadcode in BlockManager (Colin Patrick McCabe)
+
+    HDFS-5338. Add a conf to disable hostname check in datanode registration.
+    (szetszwo)
+
+    HDFS-5130. Add test for snapshot related FsShell and DFSAdmin commands.
+    (Binglin Chang via jing9)
+
+    HDFS-5374. Remove deadcode in DFSOutputStream. (suresh)
+
+    HDFS-4511. Cover package org.apache.hadoop.hdfs.tools with unit test
+    (Andrey Klochkov via jeagles)
+
+    HDFS-4885. Improve the verifyBlockPlacement() API in BlockPlacementPolicy.
+    (Junping Du via szetszwo)
+
+    HDFS-5363. Refactor WebHdfsFileSystem: move SPENGO-authenticated connection
+    creation to URLConnectionFactory. (Haohui Mai via jing9)
+
+    HDFS-5436. Move HsFtpFileSystem and HFtpFileSystem into org.apache.hdfs.web
+    (Haohui Mai via Arpit Agarwal)
+
   OPTIMIZATIONS
 
     HDFS-5239.  Allow FSNamesystem lock fairness to be configurable (daryn)
 
+    HDFS-5341. Reduce fsdataset lock duration during directory scanning.
+    (Qus-Jiawei via kihwal)
+
   BUG FIXES
+
     HDFS-5034.  Remove debug prints from GetFileLinkInfo (Andrew Wang via Colin
     Patrick McCabe)
-
-    HDFS-5035.  getFileLinkStatus and rename do not correctly check permissions
-    of symlinks.  (Andrew Wang via Colin Patrick McCabe)
-
-    HDFS-5065. TestSymlinkHdfsDisable fails on Windows. (ivanmi)
 
     HDFS-4816. transitionToActive blocks if the SBN is doing checkpoint image
     transfer. (Andrew Wang)
@@ -333,7 +476,26 @@ Release 2.3.0 - UNRELEASED
 
     HDFS-5266. ElasticByteBufferPool#Key does not implement equals. (cnauroth)
 
-Release 2.2.0 - UNRELEASED
+    HDFS-5352. Server#initLog() doesn't close InputStream in httpfs. (Ted Yu via
+    jing9)
+
+    HDFS-5283. Under construction blocks only inside snapshots should not be
+    counted in safemode threshhold.  (Vinay via szetszwo)
+
+    HDFS-4376. Fix race conditions in Balancer.  (Junping Du via szetszwo)
+
+    HDFS-5375. hdfs.cmd does not expose several snapshot commands. (cnauroth)
+
+    HDFS-5336. DataNode should not output 'StartupProgress' metrics.
+    (Akira Ajisaka via cnauroth)
+
+    HDFS-5400.  DFS_CLIENT_MMAP_CACHE_THREAD_RUNS_PER_TIMEOUT constant is set
+    to the wrong value.  (Colin Patrick McCabe)
+
+    HDFS-5257. addBlock() retry should return LocatedBlock with locations else client 
+    will get AIOBE. (Vinay via jing9)
+
+Release 2.2.1 - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -341,15 +503,93 @@ Release 2.2.0 - UNRELEASED
 
   IMPROVEMENTS
 
+    HDFS-5360. Improvement of usage message of renameSnapshot and
+    deleteSnapshot. (Shinichi Yamashita via wang)
+
+    HDFS-5331. make SnapshotDiff.java to a o.a.h.util.Tool interface implementation. 
+    (Vinayakumar B via umamahesh)
+
+    HDFS-4657.  Limit the number of blocks logged by the NN after a block
+    report to a configurable value.  (Aaron T. Myers via Colin Patrick
+    McCabe)
+
+    HDFS-5344. Make LsSnapshottableDir as Tool interface implementation. (Sathish via umamahesh)
+
   OPTIMIZATIONS
 
   BUG FIXES
 
-Release 2.1.2 - UNRELEASED
+    HDFS-5307. Support both HTTP and HTTPS in jsp pages (Haohui Mai via
+    brandonli)
+
+    HDFS-5291. Standby namenode after transition to active goes into safemode.
+    (jing9)
+
+    HDFS-5317. Go back to DFS Home link does not work on datanode webUI
+    (Haohui Mai via brandonli)
+
+    HDFS-5316. Namenode ignores the default https port (Haohui Mai via
+    brandonli)
+
+    HDFS-5281. COMMIT request should not block. (brandonli)
+
+    HDFS-5337. should do hsync for a commit request even there is no pending
+    writes (brandonli)
+
+    HDFS-5335. Hive query failed with possible race in dfs output stream.
+    (Haohui Mai via suresh)
+
+    HDFS-5322. HDFS delegation token not found in cache errors seen on secure HA 
+    clusters. (jing9)
+
+    HDFS-5329. Update FSNamesystem#getListing() to handle inode path in startAfter
+    token. (brandonli)
+
+    HDFS-5330. fix readdir and readdirplus for large directories (brandonli)
+
+    HDFS-5370. Typo in Error Message: different between range in condition
+    and range in error message. (Kousuke Saruta via suresh)
+
+    HDFS-5365. Fix libhdfs compile error on FreeBSD9. (Radim Kolar via cnauroth)
+    
+    HDFS-5347. Add HDFS NFS user guide. (brandonli)
+
+    HDFS-5403. WebHdfs client cannot communicate with older WebHdfs servers
+    post HDFS-5306. (atm)
+
+    HDFS-5171. NFS should create input stream for a file and try to share it
+    with multiple read requests. (Haohui Mai via brandonli)
+
+    HDFS-5413. hdfs.cmd does not support passthrough to any arbitrary class.
+    (cnauroth)
+
+    HDFS-5433. When reloading fsimage during checkpointing, we should clear
+    existing snapshottable directories. (Aaron T. Myers via wang)
+
+    HDFS-5432. TestDatanodeJsp fails on Windows due to assumption that loopback
+    address resolves to host name localhost. (cnauroth)
+
+    HDFS-5065. TestSymlinkHdfsDisable fails on Windows. (ivanmi)
+
+    HDFS-4633 TestDFSClientExcludedNodes fails sporadically if excluded nodes
+    cache expires too quickly  (Chris Nauroth via Sanjay)
+
+    HDFS-5037. Active NN should trigger its own edit log rolls (wang)
+
+    HDFS-5035.  getFileLinkStatus and rename do not correctly check permissions
+    of symlinks.  (Andrew Wang via Colin Patrick McCabe)
+
+    HDFS-5456. NameNode startup progress creates new steps if caller attempts to
+    create a counter for a step that doesn't already exist.  (cnauroth)
+
+Release 2.2.0 - 2013-10-13
 
   INCOMPATIBLE CHANGES
 
   NEW FEATURES
+
+    HDFS-4817.  Make HDFS advisory caching configurable on a per-file basis.
+    (Colin Patrick McCabe)
 
     HDFS-5230. Introduce RpcInfo to decouple XDR classes from the RPC API.
     (Haohui Mai via brandonli)
@@ -361,6 +601,9 @@ Release 2.1.2 - UNRELEASED
 
     HDFS-5256. Use guava LoadingCache to implement DFSClientCache. (Haohui Mai
     via brandonli)
+
+    HDFS-5308. Replace HttpConfig#getSchemePrefix with implicit schemes in HDFS 
+    JSP. (Haohui Mai via jing9)
 
   OPTIMIZATIONS
 
@@ -390,6 +633,18 @@ Release 2.1.2 - UNRELEASED
 
     HDFS-5289. Race condition in TestRetryCacheWithHA#testCreateSymlink causes
     spurious test failure. (atm)
+
+    HDFS-5300. FSNameSystem#deleteSnapshot() should not check owner in case of 
+    permissions disabled. (Vinay via jing9)
+
+    HDFS-5306. Datanode https port is not available at the namenode. (Suresh
+    Srinivas via brandonli)
+
+    HDFS-5299. DFS client hangs in updatePipeline RPC when failover happened.
+    (Vinay via jing9)
+
+    HDFS-5259. Support client which combines appended data with old data
+    before sends it to NFS server. (brandonli)
 
 Release 2.1.1-beta - 2013-09-23
 
@@ -3605,6 +3860,9 @@ Release 0.23.10 - UNRELEASED
 
     HDFS-5010. Reduce the frequency of getCurrentUser() calls from namenode
     (kihwal)
+
+    HDFS-5346. Avoid unnecessary call to getNumLiveDataNodes() for each block 
+    during IBR processing (Ravi Prakash via kihwal)
 
   OPTIMIZATIONS
 
