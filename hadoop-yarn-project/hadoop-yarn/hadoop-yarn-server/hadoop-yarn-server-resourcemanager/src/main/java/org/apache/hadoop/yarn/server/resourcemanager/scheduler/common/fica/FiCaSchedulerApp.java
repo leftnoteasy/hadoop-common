@@ -18,14 +18,18 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -35,6 +39,8 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
+import org.apache.hadoop.yarn.factories.RecordFactory;
+import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
@@ -43,8 +49,10 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEven
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerFinishedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerImpl;
+import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerReservedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Allocation;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AppSchedulingInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
@@ -63,9 +71,6 @@ public class FiCaSchedulerApp extends SchedulerApplication {
 
   private final RecordFactory recordFactory = RecordFactoryProvider
       .getRecordFactory(null);
-
-  private final AppSchedulingInfo appSchedulingInfo;
-  private final Queue queue;
 
   private final Resource currentConsumption = recordFactory
       .newRecordInstance(Resource.class);
@@ -88,7 +93,7 @@ public class FiCaSchedulerApp extends SchedulerApplication {
 
   private final Set<ContainerId> containersToPreempt =
     new HashSet<ContainerId>();
-
+  
   public FiCaSchedulerApp(ApplicationAttemptId applicationAttemptId, 
       String user, Queue queue, ActiveUsersManager activeUsersManager,
       RMContext rmContext) {
@@ -253,42 +258,6 @@ public class FiCaSchedulerApp extends SchedulerApplication {
 
   public synchronized RMContainer getRMContainer(ContainerId id) {
     return liveContainers.get(id);
-  }
-
-  synchronized public void resetSchedulingOpportunities(Priority priority) {
-    this.schedulingOpportunities.setCount(priority, 0);
-  }
-
-  synchronized public void addSchedulingOpportunity(Priority priority) {
-    this.schedulingOpportunities.setCount(priority,
-        schedulingOpportunities.count(priority) + 1);
-  }
-
-  synchronized public void subtractSchedulingOpportunity(Priority priority) {
-    int count = schedulingOpportunities.count(priority) - 1;
-    this.schedulingOpportunities.setCount(priority, Math.max(count,  0));
-  }
-  
-  /**
-   * @param priority Target priority
-   * @return the number of times the application has been given an opportunity
-   * to schedule a task at the given priority since the last time it
-   * successfully did so.
-   */
-  synchronized public int getSchedulingOpportunities(Priority priority) {
-    return this.schedulingOpportunities.count(priority);
-  }
-
-  synchronized void resetReReservations(Priority priority) {
-    this.reReservations.setCount(priority, 0);
-  }
-
-  synchronized void addReReservation(Priority priority) {
-    this.reReservations.add(priority);
-  }
-
-  synchronized public int getReReservations(Priority priority) {
-    return this.reReservations.count(priority);
   }
 
   public synchronized int getNumReservedContainers(Priority priority) {

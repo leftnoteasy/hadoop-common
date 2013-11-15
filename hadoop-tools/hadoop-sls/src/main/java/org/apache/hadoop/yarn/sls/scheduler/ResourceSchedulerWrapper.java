@@ -866,5 +866,11 @@ public class ResourceSchedulerWrapper implements ResourceScheduler,
   public boolean enableChangingContainerSize() {
     return scheduler.enableChangingContainerSize();
   }
+
+  @Override
+  public ApplicationResourceUsageReport getAppResourceUsageReport(
+      ApplicationAttemptId appAttemptId) {
+    return scheduler.getAppResourceUsageReport(appAttemptId);
+  }
 }
 
