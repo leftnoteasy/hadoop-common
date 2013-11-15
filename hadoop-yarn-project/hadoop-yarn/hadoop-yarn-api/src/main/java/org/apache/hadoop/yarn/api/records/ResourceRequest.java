@@ -63,10 +63,11 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
   @Stable
   public static ResourceRequest newInstance(Priority priority, String hostName,
       Resource capability, int numContainers) {
-    return newInstance(priority, hostName, capability, numContainers, true, null);
+    return newInstance(priority, hostName, capability, numContainers, true);
   }
-  
+
   @Public
+  @Stable
   public static ResourceRequest newInstance(Priority priority, String hostName,
       Resource capability, int numContainers, boolean relaxLocality) {
     ResourceRequest request = Records.newRecord(ResourceRequest.class);
@@ -75,19 +76,6 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
     request.setCapability(capability);
     request.setNumContainers(numContainers);
     request.setRelaxLocality(relaxLocality);
-    return request;
-  }
-
-  @Public
-  public static ResourceRequest newInstance(Priority priority, String hostName,
-      Resource capability, int numContainers, boolean relaxLocality, ContainerId existingContainerId) {
-    ResourceRequest request = Records.newRecord(ResourceRequest.class);
-    request.setPriority(priority);
-    request.setResourceName(hostName);
-    request.setCapability(capability);
-    request.setNumContainers(numContainers);
-    request.setRelaxLocality(relaxLocality);
-    request.setExistingContainerId(existingContainerId);
     return request;
   }
 
@@ -251,30 +239,6 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
   @Stable
   public abstract void setRelaxLocality(boolean relaxLocality);
   
-  /**
-   * Get existing container id to be allocated, default is false
-   * @return existing container id to be allocated
-   */
-  @Public
-  public abstract ContainerId getExistingContainerId();
-  
-  /**4
-   * <p>For a request for increase existing container size, set which container to be 
-   * allocated. The container state should be ACQUIRED or RUNNING. Otherwise, this
-   * request will be ignored<p>
-   * 
-   * <p>By default, this field is null. If the field is set, all fields in ResourceRequest
-   * except for capability will be ignored and use existing priority<p>
-   * 
-   * <p>If the field is set, relaxLocality will be always set false. Capability 
-   * of such request should be greater than existing container size. Otherwise, this request
-   * will be ignored<p>
-   * 
-   * @param existingId, existing container id to be allocated to
-   */
-  @Public
-  public abstract void setExistingContainerId(ContainerId existingId);
-  
   @Override
   public int hashCode() {
     final int prime = 2153;
@@ -299,24 +263,6 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
     if (getClass() != obj.getClass())
       return false;
     ResourceRequest other = (ResourceRequest) obj;
-    
-    // we only compare capability field when container id is set
-    ContainerId existingContainerId = getExistingContainerId();
-    if (existingContainerId == null) {
-        if (other.getExistingContainerId() != null) {
-            return false;
-        }
-    } else if (!existingContainerId.equals(other.getExistingContainerId())) {
-        return false;
-    } else {
-      Resource capability = getCapability();
-      if (capability == null) {
-        if (other.getCapability() != null)
-          return false;
-      } else if (!capability.equals(other.getCapability()))
-        return false;
-      return true;
-    }
     Resource capability = getCapability();
     if (capability == null) {
       if (other.getCapability() != null)
@@ -342,11 +288,6 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
 
   @Override
   public int compareTo(ResourceRequest other) {
-  	// only compare capability if existingContainerId is set
-  	ContainerId existingContainerId = getExistingContainerId();
-  	if (existingContainerId != null) {
-  		return this.getCapability().compareTo(other.getCapability());
-  	}
     int priorityComparison = this.getPriority().compareTo(other.getPriority());
     if (priorityComparison == 0) {
       int hostNameComparison =

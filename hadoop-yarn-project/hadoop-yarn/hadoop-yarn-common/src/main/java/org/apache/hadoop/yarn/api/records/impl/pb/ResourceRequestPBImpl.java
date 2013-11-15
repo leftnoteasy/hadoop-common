@@ -18,13 +18,12 @@
 
 package org.apache.hadoop.yarn.api.records.impl.pb;
 
+
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
-import org.apache.hadoop.yarn.proto.YarnProtos.ContainerIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.PriorityProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceRequestProto;
@@ -39,7 +38,7 @@ public class ResourceRequestPBImpl extends  ResourceRequest {
   
   private Priority priority = null;
   private Resource capability = null;
-  private ContainerId existingContainerId = null;
+  
   
   public ResourceRequestPBImpl() {
     builder = ResourceRequestProto.newBuilder();
@@ -63,9 +62,6 @@ public class ResourceRequestPBImpl extends  ResourceRequest {
     }
     if (this.capability != null) {
       builder.setCapability(convertToProtoFormat(this.capability));
-    }
-    if (this.existingContainerId != null) {
-    	builder.setExistingContainerId(convertToProtoFormat(this.existingContainerId));
     }
   }
 
@@ -166,28 +162,6 @@ public class ResourceRequestPBImpl extends  ResourceRequest {
     maybeInitBuilder();
     builder.setRelaxLocality(relaxLocality);
   }
-  
-  @Override
-  public void setExistingContainerId(ContainerId existingContainerId) {
-    maybeInitBuilder();
-    if (existingContainerId == null) {
-    	builder.clearExistingContainerId();
-    }
-    this.existingContainerId = existingContainerId;
-  }
-  
-  @Override
-  public ContainerId getExistingContainerId() {
-    ResourceRequestProtoOrBuilder p = viaProto ? proto : builder;
-    if (this.existingContainerId != null) {
-    	return this.existingContainerId;
-    }
-    if (!p.hasExistingContainerId()) {
-    	return null;
-    }
-    this.existingContainerId = convertFromProtoFormat(p.getExistingContainerId());
-    return this.existingContainerId;
-  }
 
   private PriorityPBImpl convertFromProtoFormat(PriorityProto p) {
     return new PriorityPBImpl(p);
@@ -196,10 +170,6 @@ public class ResourceRequestPBImpl extends  ResourceRequest {
   private PriorityProto convertToProtoFormat(Priority t) {
     return ((PriorityPBImpl)t).getProto();
   }
-  
-  private ContainerId convertFromProtoFormat(ContainerIdProto p) {
-    return new ContainerIdPBImpl(p);
-  }
 
   private ResourcePBImpl convertFromProtoFormat(ResourceProto p) {
     return new ResourcePBImpl(p);
@@ -207,10 +177,6 @@ public class ResourceRequestPBImpl extends  ResourceRequest {
 
   private ResourceProto convertToProtoFormat(Resource t) {
     return ((ResourcePBImpl)t).getProto();
-  }
-  
-  private ContainerIdProto convertToProtoFormat(ContainerId t) {
-  	return ((ContainerIdPBImpl)t).getProto();
   }
   
   @Override

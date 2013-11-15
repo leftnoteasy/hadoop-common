@@ -190,7 +190,6 @@ message ResourceRequestProto {
   optional ResourceProto capability = 3;
   optional int32 num_containers = 4;
   optional bool relax_locality = 5 [default = true];
-  optional ContainerIdProto existing_container_id = 6;
 }
 
 enum AMCommandProto {
