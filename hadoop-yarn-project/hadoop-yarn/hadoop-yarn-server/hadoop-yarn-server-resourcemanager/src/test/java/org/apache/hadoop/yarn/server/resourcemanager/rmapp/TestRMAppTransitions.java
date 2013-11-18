@@ -868,7 +868,7 @@ public class TestRMAppTransitions {
       thenReturn(Collections.singletonList(container));
     when(
       scheduler.allocate(any(ApplicationAttemptId.class), any(List.class),
-        any(List.class), any(List.class), any(List.class))).thenReturn(
+        any(List.class), any(List.class), any(List.class), any(List.class))).thenReturn(
       allocation);
     attempt.handle(new RMAppAttemptContainerAllocatedEvent(attempt
       .getAppAttemptId(), container));

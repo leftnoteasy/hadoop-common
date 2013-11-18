@@ -57,6 +57,7 @@ import org.apache.hadoop.yarn.api.records.PreemptionMessage;
 import org.apache.hadoop.yarn.api.records.PreemptionResourceRequest;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceBlacklistRequest;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.api.records.StrictPreemptionContract;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -380,6 +381,7 @@ public class ApplicationMasterService extends AbstractService implements
 
       List<ResourceRequest> ask = request.getAskList();
       List<ContainerId> release = request.getReleaseList();
+      List<ResourceChangeContext> increaseRequests = request.getIncreaseRequests();
       
       ResourceBlacklistRequest blacklistRequest = request.getResourceBlacklistRequest();
       List<String> blacklistAdditions = 
@@ -415,7 +417,7 @@ public class ApplicationMasterService extends AbstractService implements
       // Send new requests to appAttempt.
       Allocation allocation =
           this.rScheduler.allocate(appAttemptId, ask, release, 
-              blacklistAdditions, blacklistRemovals);
+              blacklistAdditions, blacklistRemovals, increaseRequests);
 
       RMApp app = this.rmContext.getRMApps().get(
           appAttemptId.getApplicationId());

@@ -33,6 +33,7 @@ import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
@@ -108,7 +109,8 @@ public interface YarnScheduler extends EventHandler<SchedulerEvent> {
       List<ResourceRequest> ask,
       List<ContainerId> release, 
       List<String> blacklistAdditions, 
-      List<String> blacklistRemovals);
+      List<String> blacklistRemovals,
+      List<ResourceChangeContext> increaseRequests);
 
   /**
    * Get node resource usage report.

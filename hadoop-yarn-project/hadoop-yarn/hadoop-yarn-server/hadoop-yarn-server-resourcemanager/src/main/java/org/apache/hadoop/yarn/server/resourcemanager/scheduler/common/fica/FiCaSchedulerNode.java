@@ -32,6 +32,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
@@ -54,6 +55,7 @@ public class FiCaSchedulerNode extends SchedulerNode {
   private volatile int numContainers;
 
   private RMContainer reservedContainer;
+  private ResourceChangeContext reservedIncreaseRequest;
   
   /* set of containers that are allocated containers */
   private final Map<ContainerId, RMContainer> launchedContainers = 
@@ -239,9 +241,15 @@ public class FiCaSchedulerNode extends SchedulerNode {
     }
     this.reservedContainer = reservedContainer;
   }
+  
+  public synchronized void reserveIncreaseResource(
+      ResourceChangeContext increaseRequest) {
+    // TODO, add code to check and reserve
+  }
 
   public synchronized void unreserveResource(
       SchedulerApplication application) {
+    // TODO, add code to check and un-reserve increase request
     
     // adding NP checks as this can now be called for preemption
     if (reservedContainer != null
@@ -267,5 +275,12 @@ public class FiCaSchedulerNode extends SchedulerNode {
   public synchronized RMContainer getReservedContainer() {
     return reservedContainer;
   }
+  
+  public synchronized ResourceChangeContext getReservedIncreaseRequest() {
+    return reservedIncreaseRequest;
+  }
 
+  public synchronized boolean isReserved() {
+    return reservedContainer != null || reservedIncreaseRequest != null;
+  }
 }

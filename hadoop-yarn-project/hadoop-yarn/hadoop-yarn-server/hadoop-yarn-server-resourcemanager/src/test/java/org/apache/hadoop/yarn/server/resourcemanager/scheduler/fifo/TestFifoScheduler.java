@@ -196,7 +196,7 @@ public class TestFifoScheduler {
     ask.add(nodeLocal);
     ask.add(rackLocal);
     ask.add(any);
-    scheduler.allocate(appAttemptId, ask, new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(appAttemptId, ask, new ArrayList<ContainerId>(), null, null, null);
 
     NodeUpdateSchedulerEvent node0Update = new NodeUpdateSchedulerEvent(node0);
 
@@ -452,11 +452,11 @@ public class TestFifoScheduler {
     // Verify the blacklist can be updated independent of requesting containers
     fs.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
         Collections.<ContainerId>emptyList(),
-        Collections.singletonList(host), null);
+        Collections.singletonList(host), null, null);
     Assert.assertTrue(fs.getApplication(appAttemptId).isBlacklisted(host));
     fs.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
         Collections.<ContainerId>emptyList(), null,
-        Collections.singletonList(host));
+        Collections.singletonList(host), null);
     Assert.assertFalse(fs.getApplication(appAttemptId).isBlacklisted(host));
     rm.stop();
   }
