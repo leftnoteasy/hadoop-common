@@ -26,6 +26,7 @@ import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ResourceBlacklistRequest;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -59,13 +60,15 @@ public abstract class AllocateRequest {
   public static AllocateRequest newInstance(int responseID, float appProgress,
       List<ResourceRequest> resourceAsk,
       List<ContainerId> containersToBeReleased,
-      ResourceBlacklistRequest resourceBlacklistRequest) {
+      ResourceBlacklistRequest resourceBlacklistRequest,
+      List<ResourceChangeContext> increaseRequests) {
     AllocateRequest allocateRequest = Records.newRecord(AllocateRequest.class);
     allocateRequest.setResponseId(responseID);
     allocateRequest.setProgress(appProgress);
     allocateRequest.setAskList(resourceAsk);
     allocateRequest.setReleaseList(containersToBeReleased);
     allocateRequest.setResourceBlacklistRequest(resourceBlacklistRequest);
+    allocateRequest.setIncreaseRequests(increaseRequests);
     return allocateRequest;
   }
   
@@ -170,4 +173,11 @@ public abstract class AllocateRequest {
   @Stable
   public abstract void setResourceBlacklistRequest(
       ResourceBlacklistRequest resourceBlacklistRequest);
+  
+  @Public
+  public abstract List<ResourceChangeContext> getIncreaseRequests();
+  
+  @Public
+  public abstract void setIncreaseRequests(
+      List<ResourceChangeContext> increaseRequests);
 }
