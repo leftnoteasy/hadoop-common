@@ -658,37 +658,54 @@ public class CapacityScheduler
     }
 
     // Assign new containers...
-    // 1. Check for reserved applications
+    // 1. Check for reserved applications (include increase request)
     // 2. Schedule if there are no reservations
-
-    RMContainer reservedContainer = node.getReservedContainer();
-    if (reservedContainer != null) {
-      FiCaSchedulerApp reservedApplication = 
-          getApplication(reservedContainer.getApplicationAttemptId());
-      
-      // Try to fulfill the reservation
-      LOG.info("Trying to fulfill reservation for application " + 
-          reservedApplication.getApplicationId() + " on node: " + nm);
-      
-      LeafQueue queue = ((LeafQueue)reservedApplication.getQueue());
-      CSAssignment assignment = queue.assignContainers(clusterResource, node);
-      
-      RMContainer excessReservation = assignment.getExcessReservation();
-      if (excessReservation != null) {
-      Container container = excessReservation.getContainer();
-      queue.completedContainer(
-          clusterResource, assignment.getApplication(), node, 
-          excessReservation, 
-          SchedulerUtils.createAbnormalContainerStatus(
-              container.getId(), 
-              SchedulerUtils.UNRESERVED_CONTAINER), 
-          RMContainerEventType.RELEASED, null);
+    if (node.isReserved()) {
+      // we will either reserve resource for increasing or new container
+      RMContainer reservedContainer = node.getReservedContainer();
+      if (reservedContainer != null) {
+        // this is reserved for new container
+        FiCaSchedulerApp reservedApplication = 
+            getApplication(reservedContainer.getApplicationAttemptId());
+        
+        // Try to fulfill the reservation
+        LOG.info("Trying to fulfill reservation for application " + 
+            reservedApplication.getApplicationId() + " on node: " + nm);
+        
+        LeafQueue queue = ((LeafQueue)reservedApplication.getQueue());
+        CSAssignment assignment = queue.assignContainers(clusterResource, node);
+        
+        RMContainer excessReservation = assignment.getExcessReservation();
+        if (excessReservation != null) {
+        Container container = excessReservation.getContainer();
+        queue.completedContainer(
+            clusterResource, assignment.getApplication(), node, 
+            excessReservation, 
+            SchedulerUtils.createAbnormalContainerStatus(
+                container.getId(), 
+                SchedulerUtils.UNRESERVED_CONTAINER), 
+            RMContainerEventType.RELEASED, null);
+        }
+      } else {
+        // this is reserved for increasing
+        ResourceChangeContext increaseRequest = node.getReservedIncreaseRequest();
+        if (increaseRequest != null) {
+          // get reserved application
+          FiCaSchedulerApp reservedApplication = getApplication(increaseRequest
+              .getExistingContainerId().getApplicationAttemptId());
+          
+          // try to fulfill the reservation
+          LOG.info("Trying to fulfill increase reservation for application " + 
+              reservedApplication.getApplicationId() + " on node: " + nm);
+          
+          LeafQueue queue = (LeafQueue)reservedApplication.getQueue();
+          queue.assignIncreaseRequest(clusterResource, increaseRequest);
+        }
       }
-
     }
 
     // Try to schedule more if there are no reservations to fulfill
-    if (node.getReservedContainer() == null) {
+    if (!node.isReserved()) {
       root.assignContainers(clusterResource, node);
     } else {
       LOG.info("Skipping scheduling since node " + nm + 

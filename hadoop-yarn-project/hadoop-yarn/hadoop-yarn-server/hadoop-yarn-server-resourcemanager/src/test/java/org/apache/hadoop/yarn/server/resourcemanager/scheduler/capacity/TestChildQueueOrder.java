@@ -134,7 +134,7 @@ public class TestChildQueueOrder {
         } else {
           FiCaSchedulerApp app1 = getMockApplication(0, "");
           ((LeafQueue)queue).allocateResource(clusterResource, app1, 
-              allocatedResource);
+              allocatedResource, true);
         }
 
         // Next call - nothing

@@ -246,6 +246,10 @@ public class FiCaSchedulerNode extends SchedulerNode {
       ResourceChangeContext increaseRequest) {
     // TODO, add code to check and reserve
   }
+  
+  public synchronized void unreserveIncreaseResource(ContainerId containerId) {
+    // TODO, add code to unreserve
+  }
 
   public synchronized void unreserveResource(
       SchedulerApplication application) {

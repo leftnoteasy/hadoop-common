@@ -35,8 +35,10 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -221,6 +223,12 @@ public class AppSchedulingInfo {
     Map<String, ResourceRequest> nodeRequests = requests.get(priority);
     return (nodeRequests == null) ? null : nodeRequests.get(resourceName);
   }
+  
+  synchronized public List<ResourceChangeContext> getResourceIncreaseRequests(
+      SchedulerNode resourceName) {
+    // TODO
+    return null;
+  }
 
   public synchronized Resource getResource(Priority priority) {
     ResourceRequest request = getResourceRequest(priority, ResourceRequest.ANY);
@@ -265,6 +273,16 @@ public class AppSchedulingInfo {
     LOG.debug("allocate: user: " + user + ", memory: "
         + request.getCapability());
     metrics.allocateResources(user, 1, request.getCapability());
+  }
+  
+  synchronized public void allocateIncreaseRequest(SchedulerNode node,
+      ResourceChangeContext increaseRequest) {
+    // TODO
+  }
+  
+  synchronized public void removeIncreaseRequest(SchedulerNode node, 
+      ContainerId container) {
+    // TODO
   }
 
   /**

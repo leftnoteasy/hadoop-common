@@ -40,6 +40,8 @@ import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
+import org.apache.hadoop.yarn.api.records.ResourceIncreaseContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
@@ -60,8 +62,9 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AppSchedulingInfo
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
-import org.apache.hadoop.yarn.util.resource.Resources;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNode;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
@@ -169,6 +172,14 @@ public class FiCaSchedulerApp extends SchedulerApplication {
 
   public ResourceRequest getResourceRequest(Priority priority, String resourceName) {
     return this.appSchedulingInfo.getResourceRequest(priority, resourceName);
+  }
+  
+  public List<ResourceChangeContext> getResourceIncreaseRequest(SchedulerNode node) {
+    return this.appSchedulingInfo.getResourceIncreaseRequests(node);
+  }
+  
+  public void removeIncreaseRequest(SchedulerNode node, ContainerId containerId) {
+    this.appSchedulingInfo.removeIncreaseRequest(node, containerId);
   }
 
   public synchronized int getTotalRequiredResources(Priority priority) {
@@ -400,6 +411,15 @@ public class FiCaSchedulerApp extends SchedulerApplication {
   public synchronized Resource getCurrentReservation() {
     return currentReservation;
   }
+  
+  public synchronized boolean reserveIncreaseContainer(ResourceChangeContext increaseRequest) {
+    // TODO
+    return false;
+  }
+  
+  public synchronized void allocateIncreaseResource(ResourceIncreaseContext increaseAllocation) {
+    // TODO
+  }
 
   public synchronized RMContainer reserve(FiCaSchedulerNode node, Priority priority,
       RMContainer rmContainer, Container container) {
@@ -436,6 +456,10 @@ public class FiCaSchedulerApp extends SchedulerApplication {
         + "; currentReservation " + currentReservation.getMemory());
     
     return rmContainer;
+  }
+  
+  public synchronized boolean unreserveIncreaseRequest(ContainerId containerId) {
+    return false;
   }
 
   public synchronized boolean unreserve(FiCaSchedulerNode node, Priority priority) {
@@ -483,6 +507,11 @@ public class FiCaSchedulerApp extends SchedulerApplication {
     if (reservedContainers != null) {
       return reservedContainers.containsKey(node.getNodeID());
     }
+    return false;
+  }
+  
+  public synchronized boolean isIncreaseReserved(FiCaSchedulerNode node) {
+    // TODO
     return false;
   }
 
