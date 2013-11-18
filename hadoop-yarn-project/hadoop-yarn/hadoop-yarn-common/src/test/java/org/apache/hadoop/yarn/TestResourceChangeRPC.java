@@ -70,13 +70,9 @@ public class TestResourceChangeRPC {
       try {
         ChangeContainersResourceResponse res = proxy
             .changeContainersResource(req);
-        Assert.assertEquals(inc.size(), res.getSucceedIncreasedContainers()
+        Assert.assertEquals(inc.size(), res.getSucceedChangedContainers()
             .size());
-        Assert.assertEquals(dec.size(), res.getSucceedDecreasedContainers()
-            .size());
-        Assert.assertEquals(inc.size(), res.getFailedIncreasedContainers()
-            .size());
-        Assert.assertEquals(dec.size(), res.getFailedDecreasedContainers()
+        Assert.assertEquals(dec.size(), res.getFailedChangedContainers()
             .size());
       } catch (Exception e) {
         e.printStackTrace();
@@ -122,7 +118,7 @@ public class TestResourceChangeRPC {
       }
 
       ChangeContainersResourceResponse res = ChangeContainersResourceResponse
-          .newInstance(inc, dec, inc, dec);
+          .newInstance(inc, dec);
       return res;
     }
   }

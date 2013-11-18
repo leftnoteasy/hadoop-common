@@ -10,45 +10,26 @@ import org.apache.hadoop.yarn.util.Records;
 public abstract class ChangeContainersResourceResponse {
   @Public
   public static ChangeContainersResourceResponse newInstance(
-      List<ContainerId> succeedIncreasedContainers,
-      List<ContainerId> succeedDecreasedContainers,
-      List<ContainerId> failedIncreasedContainers,
-      List<ContainerId> failedDecreasedContainers) {
+      List<ContainerId> succeedChangedContainers,
+      List<ContainerId> failedChangedContainers) {
     ChangeContainersResourceResponse request = Records
         .newRecord(ChangeContainersResourceResponse.class);
-    request.setSucceedIncreasedContainers(succeedIncreasedContainers);
-    request.setSucceedDecreasedContainers(succeedDecreasedContainers);
-    request.setFailedIncreasedContainers(failedIncreasedContainers);
-    request.setFailedDecreasedContainers(failedDecreasedContainers);
+    request.setSucceedChangedContainers(succeedChangedContainers);
+    request.setFailedChangedContainers(failedChangedContainers);
     return request;
   }
 
   @Public
-  public abstract List<ContainerId> getSucceedIncreasedContainers();
+  public abstract List<ContainerId> getSucceedChangedContainers();
 
   @Public
-  public abstract void setSucceedIncreasedContainers(
+  public abstract void setSucceedChangedContainers(
       List<ContainerId> succeedIncreasedContainers);
+  
+  @Public
+  public abstract List<ContainerId> getFailedChangedContainers();
 
   @Public
-  public abstract List<ContainerId> getSucceedDecreasedContainers();
-
-  @Public
-  public abstract void setSucceedDecreasedContainers(
-      List<ContainerId> succeedDecreasedContainers);
-
-  @Public
-  public abstract List<ContainerId> getFailedIncreasedContainers();
-
-  @Public
-  public abstract void setFailedIncreasedContainers(
-      List<ContainerId> failedIncreasedContainers);
-
-  @Public
-  public abstract List<ContainerId> getFailedDecreasedContainers();
-
-  @Public
-  public abstract void setFailedDecreasedContainers(
-      List<ContainerId> failedDecreasedContainers);
-
+  public abstract void setFailedChangedContainers(
+      List<ContainerId> succeedIncreasedContainers);
 }

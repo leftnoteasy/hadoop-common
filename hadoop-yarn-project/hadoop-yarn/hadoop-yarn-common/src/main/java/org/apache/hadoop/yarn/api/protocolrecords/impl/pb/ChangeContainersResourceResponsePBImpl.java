@@ -20,10 +20,8 @@ public class ChangeContainersResourceResponsePBImpl extends
   ChangeContainersResourceResponseProto.Builder builder = null;
   boolean viaProto = false;
 
-  private List<ContainerId> succeedIncreasedContainers = null;
-  private List<ContainerId> succeedDecreasedContainers = null;
-  private List<ContainerId> failedIncreasedContainers = null;
-  private List<ContainerId> failedDecreasedContainers = null;
+  private List<ContainerId> succeedChangedContainers = null;
+  private List<ContainerId> failedChangedContainers = null;
 
   public ChangeContainersResourceResponsePBImpl() {
     builder = ChangeContainersResourceResponseProto.newBuilder();
@@ -64,17 +62,11 @@ public class ChangeContainersResourceResponsePBImpl extends
   }
 
   private void mergeLocalToBuilder() {
-    if (this.succeedIncreasedContainers != null) {
-      addSucceedIncreasedContainersToProto();
+    if (this.succeedChangedContainers != null) {
+      addSucceedChangedContainersToProto();
     }
-    if (this.succeedDecreasedContainers != null) {
-      addSucceedDecreasedContainersToProto();
-    }
-    if (this.failedIncreasedContainers != null) {
-      addFailedIncreasedContainersToProto();
-    }
-    if (this.failedDecreasedContainers != null) {
-      addFailedDecreasedContainersToProto();
+    if (this.failedChangedContainers != null) {
+      addFailedChangedContainersToProto();
     }
   }
 
@@ -95,46 +87,46 @@ public class ChangeContainersResourceResponsePBImpl extends
   }
 
   @Override
-  public List<ContainerId> getSucceedIncreasedContainers() {
-    initSucceedIncreasedContainers();
-    return this.succeedIncreasedContainers;
+  public List<ContainerId> getSucceedChangedContainers() {
+    initSucceedChangedContainers();
+    return this.succeedChangedContainers;
   }
-
+  
   @Override
-  public void setSucceedIncreasedContainers(List<ContainerId> containers) {
+  public void setSucceedChangedContainers(List<ContainerId> containers) {
     if (containers == null) {
       return;
     }
-    initSucceedIncreasedContainers();
-    this.succeedIncreasedContainers.clear();
-    this.succeedIncreasedContainers.addAll(containers);
+    initSucceedChangedContainers();
+    this.succeedChangedContainers.clear();
+    this.succeedChangedContainers.addAll(containers);
   }
 
-  private void initSucceedIncreasedContainers() {
-    if (this.succeedIncreasedContainers != null) {
+  private void initSucceedChangedContainers() {
+    if (this.succeedChangedContainers != null) {
       return;
     }
     ChangeContainersResourceResponseProtoOrBuilder p = viaProto ? proto
         : builder;
-    List<ContainerIdProto> list = p.getSucceedIncreasedContainersList();
-    this.succeedIncreasedContainers = new ArrayList<ContainerId>();
+    List<ContainerIdProto> list = p.getSucceedChangedContainersList();
+    this.succeedChangedContainers = new ArrayList<ContainerId>();
 
     for (ContainerIdProto c : list) {
-      this.succeedIncreasedContainers.add(convertFromProtoFormat(c));
+      this.succeedChangedContainers.add(convertFromProtoFormat(c));
     }
   }
 
-  private void addSucceedIncreasedContainersToProto() {
+  private void addSucceedChangedContainersToProto() {
     maybeInitBuilder();
-    builder.clearSucceedIncreasedContainers();
-    if (this.succeedIncreasedContainers == null) {
+    builder.clearSucceedChangedContainers();
+    if (this.succeedChangedContainers == null) {
       return;
     }
     Iterable<ContainerIdProto> iterable = new Iterable<ContainerIdProto>() {
       @Override
       public Iterator<ContainerIdProto> iterator() {
         return new Iterator<ContainerIdProto>() {
-          Iterator<ContainerId> iter = succeedIncreasedContainers.iterator();
+          Iterator<ContainerId> iter = succeedChangedContainers.iterator();
 
           @Override
           public boolean hasNext() {
@@ -153,50 +145,50 @@ public class ChangeContainersResourceResponsePBImpl extends
         };
       }
     };
-    builder.addAllSucceedIncreasedContainers(iterable);
+    builder.addAllSucceedChangedContainers(iterable);
   }
 
   @Override
-  public List<ContainerId> getSucceedDecreasedContainers() {
-    initSucceedDecreasedContainers();
-    return this.succeedDecreasedContainers;
+  public List<ContainerId> getFailedChangedContainers() {
+    initFailedChangedContainers();
+    return this.failedChangedContainers;
   }
 
   @Override
-  public void setSucceedDecreasedContainers(List<ContainerId> containers) {
+  public void setFailedChangedContainers(List<ContainerId> containers) {
     if (containers == null) {
       return;
     }
-    initSucceedDecreasedContainers();
-    this.succeedDecreasedContainers.clear();
-    this.succeedDecreasedContainers.addAll(containers);
+    initFailedChangedContainers();
+    this.failedChangedContainers.clear();
+    this.failedChangedContainers.addAll(containers);
   }
 
-  private void initSucceedDecreasedContainers() {
-    if (this.succeedDecreasedContainers != null) {
+  private void initFailedChangedContainers() {
+    if (this.failedChangedContainers != null) {
       return;
     }
     ChangeContainersResourceResponseProtoOrBuilder p = viaProto ? proto
         : builder;
-    List<ContainerIdProto> list = p.getSucceedDecreasedContainersList();
-    this.succeedDecreasedContainers = new ArrayList<ContainerId>();
+    List<ContainerIdProto> list = p.getFailedChangedContainersList();
+    this.failedChangedContainers = new ArrayList<ContainerId>();
 
     for (ContainerIdProto c : list) {
-      this.succeedDecreasedContainers.add(convertFromProtoFormat(c));
+      this.failedChangedContainers.add(convertFromProtoFormat(c));
     }
   }
 
-  private void addSucceedDecreasedContainersToProto() {
+  private void addFailedChangedContainersToProto() {
     maybeInitBuilder();
-    builder.clearSucceedDecreasedContainers();
-    if (this.succeedDecreasedContainers == null) {
+    builder.clearFailedChangedContainers();
+    if (this.failedChangedContainers == null) {
       return;
     }
     Iterable<ContainerIdProto> iterable = new Iterable<ContainerIdProto>() {
       @Override
       public Iterator<ContainerIdProto> iterator() {
         return new Iterator<ContainerIdProto>() {
-          Iterator<ContainerId> iter = succeedDecreasedContainers.iterator();
+          Iterator<ContainerId> iter = failedChangedContainers.iterator();
 
           @Override
           public boolean hasNext() {
@@ -215,131 +207,7 @@ public class ChangeContainersResourceResponsePBImpl extends
         };
       }
     };
-    builder.addAllSucceedDecreasedContainers(iterable);
-  }
-
-  @Override
-  public List<ContainerId> getFailedIncreasedContainers() {
-    initFailedIncreasedContainers();
-    return this.failedIncreasedContainers;
-  }
-
-  @Override
-  public void setFailedIncreasedContainers(List<ContainerId> containers) {
-    if (containers == null) {
-      return;
-    }
-    initFailedIncreasedContainers();
-    this.failedIncreasedContainers.clear();
-    this.failedIncreasedContainers.addAll(containers);
-  }
-
-  private void initFailedIncreasedContainers() {
-    if (this.failedIncreasedContainers != null) {
-      return;
-    }
-    ChangeContainersResourceResponseProtoOrBuilder p = viaProto ? proto
-        : builder;
-    List<ContainerIdProto> list = p.getFailedIncreasedContainersList();
-    this.failedIncreasedContainers = new ArrayList<ContainerId>();
-
-    for (ContainerIdProto c : list) {
-      this.failedIncreasedContainers.add(convertFromProtoFormat(c));
-    }
-  }
-
-  private void addFailedIncreasedContainersToProto() {
-    maybeInitBuilder();
-    builder.clearFailedIncreasedContainers();
-    if (this.failedIncreasedContainers == null) {
-      return;
-    }
-    Iterable<ContainerIdProto> iterable = new Iterable<ContainerIdProto>() {
-      @Override
-      public Iterator<ContainerIdProto> iterator() {
-        return new Iterator<ContainerIdProto>() {
-          Iterator<ContainerId> iter = failedIncreasedContainers.iterator();
-
-          @Override
-          public boolean hasNext() {
-            return iter.hasNext();
-          }
-
-          @Override
-          public ContainerIdProto next() {
-            return convertToProtoFormat(iter.next());
-          }
-
-          @Override
-          public void remove() {
-            throw new UnsupportedOperationException();
-          }
-        };
-      }
-    };
-    builder.addAllFailedIncreasedContainers(iterable);
-  }
-
-  @Override
-  public List<ContainerId> getFailedDecreasedContainers() {
-    initFailedDecreasedContainers();
-    return this.failedDecreasedContainers;
-  }
-
-  @Override
-  public void setFailedDecreasedContainers(List<ContainerId> containers) {
-    if (containers == null) {
-      return;
-    }
-    initFailedDecreasedContainers();
-    this.failedDecreasedContainers.clear();
-    this.failedDecreasedContainers.addAll(containers);
-  }
-
-  private void initFailedDecreasedContainers() {
-    if (this.failedDecreasedContainers != null) {
-      return;
-    }
-    ChangeContainersResourceResponseProtoOrBuilder p = viaProto ? proto
-        : builder;
-    List<ContainerIdProto> list = p.getFailedDecreasedContainersList();
-    this.failedDecreasedContainers = new ArrayList<ContainerId>();
-
-    for (ContainerIdProto c : list) {
-      this.failedDecreasedContainers.add(convertFromProtoFormat(c));
-    }
-  }
-
-  private void addFailedDecreasedContainersToProto() {
-    maybeInitBuilder();
-    builder.clearFailedDecreasedContainers();
-    if (this.failedDecreasedContainers == null) {
-      return;
-    }
-    Iterable<ContainerIdProto> iterable = new Iterable<ContainerIdProto>() {
-      @Override
-      public Iterator<ContainerIdProto> iterator() {
-        return new Iterator<ContainerIdProto>() {
-          Iterator<ContainerId> iter = failedDecreasedContainers.iterator();
-
-          @Override
-          public boolean hasNext() {
-            return iter.hasNext();
-          }
-
-          @Override
-          public ContainerIdProto next() {
-            return convertToProtoFormat(iter.next());
-          }
-
-          @Override
-          public void remove() {
-            throw new UnsupportedOperationException();
-          }
-        };
-      }
-    };
-    builder.addAllFailedDecreasedContainers(iterable);
+    builder.addAllFailedChangedContainers(iterable);
   }
 
   private ContainerId convertFromProtoFormat(ContainerIdProto p) {

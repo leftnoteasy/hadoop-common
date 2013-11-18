@@ -33,6 +33,8 @@ import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.PreemptionMessage;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
+import org.apache.hadoop.yarn.api.records.ResourceIncreaseContext;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -89,7 +91,8 @@ public abstract class AllocateResponse {
       List<Container> allocatedContainers, List<NodeReport> updatedNodes,
       Resource availResources, AMCommand command, int numClusterNodes,
       PreemptionMessage preempt, List<NMToken> nmTokens,
-      List<Container> increasedContainers, List<Container> decreasedContainers) {
+      List<ResourceIncreaseContext> increasedContainers,
+      List<ResourceChangeContext> decreasedContainers) {
     AllocateResponse response = newInstance(responseId, completedContainers,
         allocatedContainers, updatedNodes, availResources, command,
         numClusterNodes, preempt, nmTokens);
@@ -238,16 +241,16 @@ public abstract class AllocateResponse {
   public abstract void setNMTokens(List<NMToken> nmTokens);
   
   @Public
-  public abstract List<Container> getIncreasedContainers();
+  public abstract List<ResourceIncreaseContext> getIncreasedContainers();
 
   @Public
   public abstract void setIncreasedContainers(
-      List<Container> increasedContainers);
+      List<ResourceIncreaseContext> increasedContainers);
 
   @Public
-  public abstract List<Container> getDecreasedContainers();
+  public abstract List<ResourceChangeContext> getDecreasedContainers();
 
   @Public
   public abstract void setDecreasedContainers(
-      List<Container> decreasedContainers);
+      List<ResourceChangeContext> decreasedContainers);
 }

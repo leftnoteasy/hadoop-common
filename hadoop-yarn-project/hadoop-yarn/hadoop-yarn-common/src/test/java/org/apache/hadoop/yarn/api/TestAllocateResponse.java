@@ -12,21 +12,27 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.NodeReport;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
+import org.apache.hadoop.yarn.api.records.ResourceIncreaseContext;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.AllocateResponseProto;
 import org.junit.Test;
 
 public class TestAllocateResponse {
   @Test
   public void testAllocateResponseWithIncDecContainers() {
-    List<Container> incContainers = new ArrayList<Container>();
-    List<Container> decContainers = new ArrayList<Container>();
+    List<ResourceIncreaseContext> incContainers = new ArrayList<ResourceIncreaseContext>();
+    List<ResourceChangeContext> decContainers = new ArrayList<ResourceChangeContext>();
     for (int i = 0; i < 3; i++) {
       incContainers
-          .add(Container.newInstance(null, null, "", null, null, null));
+          .add(ResourceIncreaseContext.newInstance(
+              ResourceChangeContext.newInstance(null,
+                  Resource.newInstance(1024, i)), null));
     }
     for (int i = 0; i < 5; i++) {
       decContainers
-          .add(Container.newInstance(null, null, "", null, null, null));
+          .add(ResourceChangeContext.newInstance(null,
+              Resource.newInstance(1024, i)));
     }
 
     AllocateResponse r = AllocateResponse.newInstance(3,
@@ -43,6 +49,16 @@ public class TestAllocateResponse {
         .assertEquals(incContainers.size(), r.getIncreasedContainers().size());
     Assert
         .assertEquals(decContainers.size(), r.getDecreasedContainers().size());
+    
+    for (int i = 0; i < incContainers.size(); i++) {
+      Assert.assertEquals(i, r.getIncreasedContainers().get(i)
+          .getResourceChangeContext().getTargetCapability().getVirtualCores());
+    }
+    
+    for (int i = 0; i < decContainers.size(); i++) {
+      Assert.assertEquals(i, r.getDecreasedContainers().get(i)
+          .getTargetCapability().getVirtualCores());
+    }
   }
   
   @Test

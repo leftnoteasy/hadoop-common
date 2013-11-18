@@ -25,29 +25,19 @@ public class TestChangeContainersResourceResponse {
 
   @Test
   public void testChangeContainersResourceRequest() {
-    List<ContainerId> succInc = new ArrayList<ContainerId>();
-    List<ContainerId> succDec = new ArrayList<ContainerId>();
-    List<ContainerId> failInc = new ArrayList<ContainerId>();
-    List<ContainerId> failDec = new ArrayList<ContainerId>();
+    List<ContainerId> succeedChanged = new ArrayList<ContainerId>();
+    List<ContainerId> failChanged = new ArrayList<ContainerId>();
 
     for (int i = 0; i < 10; i++) {
-      succInc.add(getNextContainerId());
-    }
-    
-    for (int i = 0; i < 9; i++) {
-      succDec.add(getNextContainerId());
+      succeedChanged.add(getNextContainerId());
     }
     
     for (int i = 0; i < 8; i++) {
-      failInc.add(getNextContainerId());
-    }
-    
-    for (int i = 0; i < 7; i++) {
-      failDec.add(getNextContainerId());
+      failChanged.add(getNextContainerId());
     }
 
     ChangeContainersResourceResponse response = ChangeContainersResourceResponse
-        .newInstance(succInc, succDec, failInc, failDec);
+        .newInstance(succeedChanged, failChanged);
 
     // serde
     ChangeContainersResourceResponseProto proto = ((ChangeContainersResourceResponsePBImpl)response)
@@ -55,44 +45,30 @@ public class TestChangeContainersResourceResponse {
     response = new ChangeContainersResourceResponsePBImpl(proto);
 
     // check value
-    Assert.assertEquals(response.getSucceedIncreasedContainers().size(),
-        succInc.size());
-    Assert.assertEquals(response.getSucceedDecreasedContainers().size(),
-        succDec.size());
-    Assert.assertEquals(response.getFailedIncreasedContainers().size(),
-        failInc.size());
-    Assert.assertEquals(response.getFailedDecreasedContainers().size(),
-        failDec.size());
-    for (int i = 0; i < succInc.size(); i++) {
-      Assert.assertTrue(response.getSucceedIncreasedContainers().get(i)
-          .equals(succInc.get(i)));
+    Assert.assertEquals(response.getSucceedChangedContainers().size(),
+        succeedChanged.size());
+    Assert.assertEquals(response.getFailedChangedContainers().size(),
+        failChanged.size());
+    for (int i = 0; i < succeedChanged.size(); i++) {
+      Assert.assertTrue(response.getSucceedChangedContainers().get(i)
+          .equals(succeedChanged.get(i)));
     }
-    for (int i = 0; i < succDec.size(); i++) {
-      Assert.assertTrue(response.getSucceedDecreasedContainers().get(i)
-          .equals(succDec.get(i)));
-    }
-    for (int i = 0; i < failInc.size(); i++) {
-      Assert.assertTrue(response.getFailedIncreasedContainers().get(i)
-          .equals(failInc.get(i)));
-    }
-    for (int i = 0; i < failDec.size(); i++) {
-      Assert.assertTrue(response.getFailedDecreasedContainers().get(i)
-          .equals(failDec.get(i)));
+    for (int i = 0; i < failChanged.size(); i++) {
+      Assert.assertTrue(response.getFailedChangedContainers().get(i)
+          .equals(failChanged.get(i)));
     }
   }
   
   @Test
   public void testChangeContainersResourceRequestWithNull() {
-    ChangeContainersResourceResponse request = ChangeContainersResourceResponse.newInstance(null, null, null, null);
+    ChangeContainersResourceResponse request = ChangeContainersResourceResponse.newInstance(null, null);
     
     // serde
     ChangeContainersResourceResponseProto proto = ((ChangeContainersResourceResponsePBImpl)request).getProto();
     request = new ChangeContainersResourceResponsePBImpl(proto);
     
     // check value
-    Assert.assertEquals(0, request.getSucceedIncreasedContainers().size());
-    Assert.assertEquals(0, request.getSucceedDecreasedContainers().size());
-    Assert.assertEquals(0, request.getFailedIncreasedContainers().size());
-    Assert.assertEquals(0, request.getFailedDecreasedContainers().size());
+    Assert.assertEquals(0, request.getSucceedChangedContainers().size());
+    Assert.assertEquals(0, request.getFailedChangedContainers().size());
   }
 }
