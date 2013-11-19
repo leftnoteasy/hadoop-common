@@ -244,17 +244,24 @@ public class FiCaSchedulerNode extends SchedulerNode {
   
   public synchronized void reserveIncreaseResource(
       ResourceChangeContext increaseRequest) {
-    // TODO, add code to check and reserve
+    if (isReserved()) {
+      throw new IllegalStateException(
+          "failed to reserve increase resource, this node is already reserved");
+    }
+    reservedIncreaseRequest = increaseRequest;
   }
   
   public synchronized void unreserveIncreaseResource(ContainerId containerId) {
-    // TODO, add code to unreserve
+    if (reservedIncreaseRequest != null) {
+      if (reservedIncreaseRequest.getExistingContainerId().equals(containerId)) {
+        reservedIncreaseRequest = null;
+      }
+    }
+    throw new IllegalStateException("failed to remove reserved increase resource");
   }
 
   public synchronized void unreserveResource(
-      SchedulerApplication application) {
-    // TODO, add code to check and un-reserve increase request
-    
+      SchedulerApplication application) {    
     // adding NP checks as this can now be called for preemption
     if (reservedContainer != null
         && reservedContainer.getContainer() != null

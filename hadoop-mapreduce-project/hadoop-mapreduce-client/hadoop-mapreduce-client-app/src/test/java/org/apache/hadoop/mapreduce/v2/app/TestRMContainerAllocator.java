@@ -81,6 +81,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.DrainDispatcher;
@@ -1257,7 +1258,8 @@ public class TestRMContainerAllocator {
     public synchronized Allocation allocate(
         ApplicationAttemptId applicationAttemptId, List<ResourceRequest> ask,
         List<ContainerId> release, 
-        List<String> blacklistAdditions, List<String> blacklistRemovals) {
+        List<String> blacklistAdditions, List<String> blacklistRemovals,
+        List<ResourceChangeContext> increaseRequests) {
       List<ResourceRequest> askCopy = new ArrayList<ResourceRequest>();
       for (ResourceRequest req : ask) {
         ResourceRequest reqCopy = ResourceRequest.newInstance(req
@@ -1270,7 +1272,7 @@ public class TestRMContainerAllocator {
       lastBlacklistRemovals = blacklistRemovals;
       return super.allocate(
           applicationAttemptId, askCopy, release, 
-          blacklistAdditions, blacklistRemovals);
+          blacklistAdditions, blacklistRemovals, null);
     }
   }
 

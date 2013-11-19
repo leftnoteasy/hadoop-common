@@ -305,6 +305,22 @@ public class QueueMetrics implements MetricsSource {
       parent.incrPendingResources(user, containers, res);
     }
   }
+  
+  public void incrPendingResources(String user, Resource res) {
+    _incrPendingResources(res);
+    QueueMetrics userMetrics = getUserMetrics(user);
+    if (userMetrics != null) {
+      userMetrics.incrPendingResources(user, res);
+    }
+    if (parent != null) {
+      parent.incrPendingResources(user, res);
+    }
+  }
+  
+  private void _incrPendingResources(Resource res) {
+    pendingMB.incr(res.getMemory());
+    pendingVCores.incr(res.getVirtualCores());
+  }
 
   private void _incrPendingResources(int containers, Resource res) {
     pendingContainers.incr(containers);
@@ -328,6 +344,11 @@ public class QueueMetrics implements MetricsSource {
     pendingMB.decr(res.getMemory());
     pendingVCores.decr(res.getVirtualCores());
   }
+  
+  private void _decrPendingResources(Resource res) {
+    pendingMB.decr(res.getMemory());
+    pendingVCores.decr(res.getVirtualCores());
+  }
 
   public void allocateResources(String user, int containers, Resource res) {
     allocatedContainers.incr(containers);
@@ -341,6 +362,19 @@ public class QueueMetrics implements MetricsSource {
     }
     if (parent != null) {
       parent.allocateResources(user, containers, res);
+    }
+  }
+  
+  public void allocateResources(String user, Resource res) {
+    allocatedMB.incr(res.getMemory());
+    allocatedVCores.incr(res.getVirtualCores());
+    _decrPendingResources(res);
+    QueueMetrics userMetrics = getUserMetrics(user);
+    if (userMetrics != null) {
+      userMetrics.allocateResources(user, res);
+    }
+    if (parent != null) {
+      parent.allocateResources(user, res);
     }
   }
 

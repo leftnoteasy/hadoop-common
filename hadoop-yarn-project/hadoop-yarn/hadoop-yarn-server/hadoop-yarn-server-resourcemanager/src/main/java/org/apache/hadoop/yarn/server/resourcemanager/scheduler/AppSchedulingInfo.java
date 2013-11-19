@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,11 +37,13 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 /**
@@ -64,6 +67,8 @@ public class AppSchedulingInfo {
   final Map<Priority, Map<String, ResourceRequest>> requests = 
     new HashMap<Priority, Map<String, ResourceRequest>>();
   final Set<String> blacklist = new HashSet<String>();
+  final Map<NodeId, Map<ContainerId, ResourceChangeContext>> increaseRequestMap = 
+      new HashMap<NodeId, Map<ContainerId, ResourceChangeContext>>();
   
   //private final ApplicationStore store;
   private final ActiveUsersManager activeUsersManager;
@@ -112,6 +117,30 @@ public class AppSchedulingInfo {
 
   public int getNewContainerId() {
     return this.containerIdCounter.incrementAndGet();
+  }
+  
+  synchronized public void addIncreaseRequests(NodeId nodeId,
+      ResourceChangeContext increaseRequest, Resource required) {
+    ContainerId cid = increaseRequest.getExistingContainerId();
+    if (!increaseRequestMap.containsKey(nodeId)) {
+      increaseRequestMap.put(nodeId,
+          new HashMap<ContainerId, ResourceChangeContext>());
+    }
+
+    Map<ContainerId, ResourceChangeContext> cidToReq = increaseRequestMap
+        .get(nodeId);
+
+    if (cidToReq.get(cid) != null) {
+      throw new IllegalStateException(
+          "illegal state, try to put increase request to map, "
+              + "but a same container-id already in increase request map, "
+              + "containerid=" + cid.toString());
+    }
+    cidToReq.put(cid, increaseRequest);
+
+    // update queue metrics
+    QueueMetrics metrics = queue.getMetrics();
+    metrics.incrPendingResources(user, required);
   }
 
   /**
@@ -225,9 +254,16 @@ public class AppSchedulingInfo {
   }
   
   synchronized public List<ResourceChangeContext> getResourceIncreaseRequests(
-      SchedulerNode resourceName) {
-    // TODO
-    return null;
+      NodeId nodeId) {
+    if (increaseRequestMap.get(nodeId) == null) {
+      return new ArrayList<ResourceChangeContext>();
+    }
+    List<ResourceChangeContext> requests = new ArrayList<ResourceChangeContext>();
+    for (Entry<ContainerId, ResourceChangeContext> e : increaseRequestMap.get(
+        nodeId).entrySet()) {
+      requests.add(e.getValue());
+    }
+    return requests;
   }
 
   public synchronized Resource getResource(Priority priority) {
@@ -275,14 +311,20 @@ public class AppSchedulingInfo {
     metrics.allocateResources(user, 1, request.getCapability());
   }
   
-  synchronized public void allocateIncreaseRequest(SchedulerNode node,
-      ResourceChangeContext increaseRequest) {
-    // TODO
+  synchronized public void allocateIncreaseRequest(Resource required) {
+    QueueMetrics metrics = queue.getMetrics();
+    LOG.debug("allocate: user: " + user + ", memory: " + required);
+    metrics.allocateResources(user, required);
   }
   
-  synchronized public void removeIncreaseRequest(SchedulerNode node, 
-      ContainerId container) {
-    // TODO
+  synchronized public void removeIncreaseRequest(NodeId nodeId, 
+      ContainerId containerId) {
+    if (increaseRequestMap.get(nodeId) != null) {
+      Map<ContainerId, ResourceChangeContext> reqMap = increaseRequestMap.get(nodeId);
+      if (reqMap.containsKey(containerId)) {
+        reqMap.remove(containerId);
+      }
+    }
   }
 
   /**

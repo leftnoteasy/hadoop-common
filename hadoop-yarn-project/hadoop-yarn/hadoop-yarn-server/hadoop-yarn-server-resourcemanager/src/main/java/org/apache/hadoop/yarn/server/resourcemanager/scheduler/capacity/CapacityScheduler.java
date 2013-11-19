@@ -59,6 +59,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptS
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptRejectedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
+import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerState;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanContainerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo;
@@ -555,6 +556,31 @@ public class CapacityScheduler
     }
 
     synchronized (application) {
+      // check increaseRequests
+      for (ResourceChangeContext incReq : increaseRequests) {
+        RMContainer rmContainer = getRMContainer(incReq
+            .getExistingContainerId());
+        // check state of rmContainer
+        if (rmContainer.getState() != RMContainerState.ALLOCATED
+            && rmContainer.getState() != RMContainerState.RUNNING) {
+          LOG.info("try to increase a container not in correct state, ignore, containerid="
+              + rmContainer.getContainerId().toString());
+          continue;
+        }
+        // check size of it
+        if (!Resources.greaterThan(getResourceCalculator(), clusterResource,
+            incReq.getTargetCapability(), rmContainer.getContainer()
+                .getResource())) {
+          LOG.info("the target size of increase request is less or equal to existing contianer size, containerid="
+              + rmContainer.getContainerId().toString());
+          continue;
+        }
+        // get required resource
+        Resource required = Resources.subtract(incReq.getTargetCapability(),
+            rmContainer.getContainer().getResource());
+        application.addIncreaseRequests(rmContainer.getContainer().getNodeId(),
+            incReq, required);
+      }
 
       // make sure we aren't stopping/removing the application
       // when the allocate comes in
@@ -699,7 +725,7 @@ public class CapacityScheduler
               reservedApplication.getApplicationId() + " on node: " + nm);
           
           LeafQueue queue = (LeafQueue)reservedApplication.getQueue();
-          queue.assignIncreaseRequest(clusterResource, increaseRequest);
+          queue.assignIncreaseRequest(node, clusterResource, increaseRequest);
         }
       }
     }
