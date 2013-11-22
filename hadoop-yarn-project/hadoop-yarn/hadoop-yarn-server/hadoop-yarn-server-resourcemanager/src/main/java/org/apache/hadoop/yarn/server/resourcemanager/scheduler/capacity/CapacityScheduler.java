@@ -557,29 +557,46 @@ public class CapacityScheduler
 
     synchronized (application) {
       // check increaseRequests
-      for (ResourceChangeContext incReq : increaseRequests) {
-        RMContainer rmContainer = getRMContainer(incReq
-            .getExistingContainerId());
-        // check state of rmContainer
-        if (rmContainer.getState() != RMContainerState.ALLOCATED
-            && rmContainer.getState() != RMContainerState.RUNNING) {
-          LOG.info("try to increase a container not in correct state, ignore, containerid="
-              + rmContainer.getContainerId().toString());
-          continue;
+      if (increaseRequests != null) {
+        for (ResourceChangeContext incReq : increaseRequests) {
+          RMContainer rmContainer = getRMContainer(incReq
+              .getExistingContainerId());
+          // check state of rmContainer
+          if (rmContainer.getState() != RMContainerState.ACQUIRED
+              && rmContainer.getState() != RMContainerState.RUNNING) {
+            LOG.info("try to increase a container not in correct state, ignore, containerid="
+                + rmContainer.getContainerId().toString());
+            continue;
+          }
+          
+          // check if we already have increase request, we need to replace the original one 
+          ResourceChangeContext originalRequest = application
+              .getResourceIncreaseRequest(rmContainer.getContainer()
+                  .getNodeId(), rmContainer.getContainerId());
+          if (originalRequest != null) {
+            if (originalRequest.getTargetCapability().equals(incReq.getTargetCapability())) {
+              // user ask a same increase request before, we just ignore this new request
+              continue;
+            }
+            // remove the increase request before add it
+            removeIncreaseRequest(incReq.getExistingContainerId());
+          }
+          
+          // check size of it
+          if (!Resources.greaterThan(getResourceCalculator(), clusterResource,
+              incReq.getTargetCapability(), rmContainer.getContainer()
+                  .getResource())) {
+            LOG.info("the target size of increase request is less or equal to existing contianer size, containerid="
+                + rmContainer.getContainerId().toString());
+            continue;
+          }
+          
+          // get required resource
+          Resource required = Resources.subtract(incReq.getTargetCapability(),
+              rmContainer.getContainer().getResource());
+          application.addIncreaseRequests(rmContainer.getContainer()
+              .getNodeId(), incReq, required);
         }
-        // check size of it
-        if (!Resources.greaterThan(getResourceCalculator(), clusterResource,
-            incReq.getTargetCapability(), rmContainer.getContainer()
-                .getResource())) {
-          LOG.info("the target size of increase request is less or equal to existing contianer size, containerid="
-              + rmContainer.getContainerId().toString());
-          continue;
-        }
-        // get required resource
-        Resource required = Resources.subtract(incReq.getTargetCapability(),
-            rmContainer.getContainer().getResource());
-        application.addIncreaseRequests(rmContainer.getContainer().getNodeId(),
-            incReq, required);
       }
 
       // make sure we aren't stopping/removing the application
@@ -725,7 +742,7 @@ public class CapacityScheduler
               reservedApplication.getApplicationId() + " on node: " + nm);
           
           LeafQueue queue = (LeafQueue)reservedApplication.getQueue();
-          queue.assignIncreaseRequest(node, clusterResource, increaseRequest);
+          queue.assignReservedIncreaseRequest(node, clusterResource, increaseRequest);
         }
       }
     }
@@ -734,10 +751,19 @@ public class CapacityScheduler
     if (!node.isReserved()) {
       root.assignContainers(clusterResource, node);
     } else {
-      LOG.info("Skipping scheduling since node " + nm + 
-          " is reserved by application " + 
-          node.getReservedContainer().getContainerId().getApplicationAttemptId()
-          );
+      if (node.getReservedContainer() != null) {
+        LOG.info("Skipping scheduling since node "
+            + nm
+            + " is reserved by application "
+            + node.getReservedContainer().getContainerId()
+                .getApplicationAttemptId());
+      } else {
+        LOG.info("Skipping scheduling since node "
+            + nm
+            + " is reserved by application "
+            + node.getReservedIncreaseRequest().getExistingContainerId()
+                .getApplicationAttemptId());
+      }
     }
 
   }
@@ -819,6 +845,43 @@ public class CapacityScheduler
     LOG.info("Added node " + nodeManager.getNodeAddress() + 
         " clusterResource: " + clusterResource);
   }
+  
+  private synchronized void removeIncreaseRequest(
+      ContainerId containerId) {
+    // we need do following clean-ups
+    // 1) remove this request in queues
+    // 2) remvoe this request in app/node, etc.
+    RMContainer rmContainer = getRMContainer(containerId);
+    if (null == rmContainer) {
+      LOG.error("rmContaienr state is null, ignore, containerid = "
+          + containerId.toString());
+      return;
+    }
+    
+    Container container = rmContainer.getContainer();
+    NodeId nodeId = container.getNodeId();
+    
+    // remove in app/node
+    boolean reserved = false;
+    FiCaSchedulerApp application = getApplication(rmContainer.getApplicationAttemptId());
+    FiCaSchedulerNode node = getNode(rmContainer.getContainer().getNodeId());
+    ResourceChangeContext increaseRequestSave = application
+        .getResourceIncreaseRequest(nodeId, containerId);
+    application.removeIncreaseRequest(nodeId, containerId);
+    if (node.isReserved()
+        && node.getReservedIncreaseRequest().getExistingContainerId()
+            .equals(containerId)) {
+      node.unreserveIncreaseResource(containerId);
+      reserved = true;
+    }
+   
+    if (reserved) {
+      Resource required = Resources.subtract(increaseRequestSave
+          .getTargetCapability(), rmContainer.getContainer().getResource());
+      CSQueue leafQueue = (CSQueue) application.getQueue();
+      leafQueue.cancelIncreaseRequestReservation(clusterResource, increaseRequestSave, required);
+    }
+  }
 
   private synchronized void removeNode(RMNode nodeInfo) {
     FiCaSchedulerNode node = this.nodes.get(nodeInfo.getNodeID());
@@ -863,6 +926,9 @@ public class CapacityScheduler
     }
     
     Container container = rmContainer.getContainer();
+    
+    // remove increase request if exceeds
+    removeIncreaseRequest(rmContainer.getContainerId());
     
     // Get the application for the finished container
     ApplicationAttemptId applicationAttemptId =

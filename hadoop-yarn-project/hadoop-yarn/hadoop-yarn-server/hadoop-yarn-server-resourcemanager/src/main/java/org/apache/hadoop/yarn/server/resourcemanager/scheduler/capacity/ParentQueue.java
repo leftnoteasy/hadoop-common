@@ -43,6 +43,7 @@ import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueState;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
@@ -565,6 +566,8 @@ public class ParentQueue implements CSQueue {
               resourceCalculator, clusterResource, 
               assignedToChild.getResource(), Resources.none())) {
         // Track resource utilization for the parent-queue
+        // TODO, in our case, we cannot simply ++numContainer because our
+        // reservation will not create new container
         allocateResource(clusterResource, assignedToChild.getResource());
         
         // Track resource utilization in this pass of the scheduler
@@ -623,7 +626,7 @@ public class ParentQueue implements CSQueue {
   }
   
   private boolean canAssign(Resource clusterResource, FiCaSchedulerNode node) {
-    return (node.getReservedContainer() == null) && 
+    return (!node.isReserved()) && 
         Resources.greaterThanOrEqual(resourceCalculator, clusterResource, 
             node.getAvailableResource(), minimumAllocation);
   }
@@ -722,6 +725,14 @@ public class ParentQueue implements CSQueue {
             node, rmContainer, null, event, this);
       }    
     }
+  }
+  
+  @Override
+  public synchronized void cancelIncreaseRequestReservation(Resource clusterResource,
+      ResourceChangeContext changeRequest, Resource required) {
+    Resources.subtractFrom(usedResources, required);
+    CSQueueUtils.updateQueueStatistics(resourceCalculator, this, parent,
+        clusterResource, minimumAllocation);
   }
   
   synchronized void allocateResource(Resource clusterResource, 

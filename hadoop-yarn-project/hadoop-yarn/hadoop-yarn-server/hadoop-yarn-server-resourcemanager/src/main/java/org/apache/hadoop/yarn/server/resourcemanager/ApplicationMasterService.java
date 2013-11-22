@@ -456,6 +456,7 @@ public class ApplicationMasterService extends AbstractService implements
           .pullJustFinishedContainers());
       allocateResponse.setResponseId(lastResponse.getResponseId() + 1);
       allocateResponse.setAvailableResources(allocation.getResourceLimit());
+      allocateResponse.setIncreasedContainers(allocation.getIncreasedContainers());
       
       allocateResponse.setNumClusterNodes(this.rScheduler.getNumClusterNodes());
    

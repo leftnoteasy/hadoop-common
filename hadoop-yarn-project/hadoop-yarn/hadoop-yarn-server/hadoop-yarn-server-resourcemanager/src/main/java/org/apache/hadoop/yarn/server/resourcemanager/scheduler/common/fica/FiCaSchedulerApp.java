@@ -182,8 +182,16 @@ public class FiCaSchedulerApp extends SchedulerApplication {
     return this.appSchedulingInfo.getResourceIncreaseRequests(nodeId);
   }
   
+  public ResourceChangeContext getResourceIncreaseRequest(NodeId nodeId,
+      ContainerId containerId) {
+    return this.appSchedulingInfo.getResourceIncreaseRequests(nodeId, containerId);
+  }
+  
   public void removeIncreaseRequest(NodeId nodeId, ContainerId containerId) {
     this.appSchedulingInfo.removeIncreaseRequest(nodeId, containerId);
+    if (reservedIncreaseRequests.containsKey(containerId)) {
+      unreserveIncreaseRequest(containerId);
+    }
   }
 
   public synchronized int getTotalRequiredResources(Priority priority) {
@@ -633,7 +641,7 @@ public class FiCaSchedulerApp extends SchedulerApplication {
         minimumAllocation, numCont);
     return new Allocation(pullNewlyAllocatedContainers(), getHeadroom(),
                           null, currentContPreemption,
-                          Collections.singletonList(rr));
+                          Collections.singletonList(rr), pullNewlyIncreasedContainers());
   }
 
 }

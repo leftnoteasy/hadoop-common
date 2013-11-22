@@ -38,6 +38,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
@@ -54,6 +55,7 @@ public class MockAM {
 
   private final List<ResourceRequest> requests = new ArrayList<ResourceRequest>();
   private final List<ContainerId> releases = new ArrayList<ContainerId>();
+  private final List<ResourceChangeContext> increaseRequests = new ArrayList<ResourceChangeContext>();
 
   public MockAM(RMContext context, ApplicationMasterProtocol amRMProtocol,
       ApplicationAttemptId attemptId) {
@@ -122,11 +124,16 @@ public class MockAM {
       int containers) throws Exception {
     requests.addAll(createReq(hosts, memory, priority, containers));
   }
+  
+  public void addIncreaseRequest(ContainerId containerId, Resource targetCapability) {
+    increaseRequests.add(ResourceChangeContext.newInstance(containerId, targetCapability));
+  }
 
   public AllocateResponse schedule() throws Exception {
-    AllocateResponse response = allocate(requests, releases);
+    AllocateResponse response = allocate(requests, releases, increaseRequests);
     requests.clear();
     releases.clear();
+    increaseRequests.clear();
     return response;
   }
 
@@ -137,7 +144,7 @@ public class MockAM {
       String host, int memory, int numContainers,
       List<ContainerId> releases) throws Exception {
     List<ResourceRequest> reqs = createReq(new String[]{host}, memory, 1, numContainers);
-    return allocate(reqs, releases);
+    return allocate(reqs, releases, null);
   }
 
   public List<ResourceRequest> createReq(String[] hosts, int memory, int priority,
@@ -172,13 +179,18 @@ public class MockAM {
     req.setCapability(capability);
     return req;
   }
+  
+  public AllocateResponse allocate(List<ResourceRequest> resourceRequest,
+      List<ContainerId> releases) throws Exception {
+    return allocate(resourceRequest, releases, null);
+  }
 
-  public AllocateResponse allocate(
-      List<ResourceRequest> resourceRequest, List<ContainerId> releases)
+  public AllocateResponse allocate(List<ResourceRequest> resourceRequest,
+      List<ContainerId> releases, List<ResourceChangeContext> increaseRequests)
       throws Exception {
     final AllocateRequest req =
         AllocateRequest.newInstance(++responseId, 0F, resourceRequest,
-          releases, null);
+          releases, null, increaseRequests);
     UserGroupInformation ugi =
         UserGroupInformation.createRemoteUser(attemptId.toString());
     Token<AMRMTokenIdentifier> token =

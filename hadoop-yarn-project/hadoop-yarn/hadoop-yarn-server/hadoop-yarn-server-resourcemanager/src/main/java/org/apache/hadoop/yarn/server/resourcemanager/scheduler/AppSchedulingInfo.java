@@ -265,6 +265,14 @@ public class AppSchedulingInfo {
     }
     return requests;
   }
+  
+  synchronized public ResourceChangeContext getResourceIncreaseRequests(
+      NodeId nodeId, ContainerId containerId) {
+    if (increaseRequestMap.get(nodeId) == null) {
+      return null;
+    }
+    return increaseRequestMap.get(nodeId).get(containerId);
+  }
 
   public synchronized Resource getResource(Priority priority) {
     ResourceRequest request = getResourceRequest(priority, ResourceRequest.ANY);

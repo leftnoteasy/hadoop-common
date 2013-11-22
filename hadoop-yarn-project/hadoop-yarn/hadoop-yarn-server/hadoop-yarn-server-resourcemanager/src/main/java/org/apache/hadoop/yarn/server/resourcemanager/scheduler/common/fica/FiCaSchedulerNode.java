@@ -255,6 +255,7 @@ public class FiCaSchedulerNode extends SchedulerNode {
     if (reservedIncreaseRequest != null) {
       if (reservedIncreaseRequest.getExistingContainerId().equals(containerId)) {
         reservedIncreaseRequest = null;
+        return;
       }
     }
     throw new IllegalStateException("failed to remove reserved increase resource");
