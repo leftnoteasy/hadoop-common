@@ -173,7 +173,15 @@ public interface ContainerManagementProtocol {
       GetContainerStatusesRequest request) throws YarnException,
       IOException;
   
-	@Public
-	ChangeContainersResourceResponse changeContainersResource(
-	    ChangeContainersResourceRequest request) throws YarnException, IOException;
+  /**
+   * The API used by the <code>ApplicationMaster</code> to request change
+   * running containers in this node
+   * 
+   * @throws YarnException
+   * @throws IOException
+   */
+  @Public
+  ChangeContainersResourceResponse changeContainersResource(
+      ChangeContainersResourceRequest request) throws YarnException,
+      IOException;
 }

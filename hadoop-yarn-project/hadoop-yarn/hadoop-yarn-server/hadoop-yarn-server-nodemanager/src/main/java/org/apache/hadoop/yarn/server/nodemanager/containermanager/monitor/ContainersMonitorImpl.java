@@ -55,6 +55,7 @@ public class ContainersMonitorImpl extends AbstractService implements
   final Map<ContainerId, ProcessTreeInfo> containersToBeAdded;
   Map<ContainerId, ProcessTreeInfo> trackingContainers =
       new HashMap<ContainerId, ProcessTreeInfo>();
+  final List <ContainerResourceToBeChanged> containersToBeChanged;
 
   final ContainerExecutor containerExecutor;
   private final Dispatcher eventDispatcher;
@@ -81,6 +82,7 @@ public class ContainersMonitorImpl extends AbstractService implements
 
     this.containersToBeAdded = new HashMap<ContainerId, ProcessTreeInfo>();
     this.containersToBeRemoved = new ArrayList<ContainerId>();
+    this.containersToBeChanged = new ArrayList<ContainerResourceToBeChanged>();
     this.monitoringThread = new MonitoringThread();
   }
 
@@ -306,6 +308,19 @@ public class ContainersMonitorImpl extends AbstractService implements
     return isProcessTreeOverLimit(containerId, currentMemUsage,
                                   curMemUsageOfAgedProcesses, limit);
   }
+  
+  static class ContainerResourceToBeChanged {
+    public ContainerResourceToBeChanged(ContainerId containerId,
+        long vmemLimit, long pmemLimit) {
+      this.containerId = containerId;
+      this.vmemLimit = vmemLimit;
+      this.pmemLimit = pmemLimit;
+    }
+    
+    ContainerId containerId;
+    long vmemLimit;
+    long pmemLimit;
+  }
 
   private class MonitoringThread extends Thread {
     public MonitoringThread() {
@@ -347,6 +362,24 @@ public class ContainersMonitorImpl extends AbstractService implements
             LOG.info("Stopping resource-monitoring for " + containerId);
           }
           containersToBeRemoved.clear();
+        }
+        
+        // handle containers to be changed
+        synchronized (containersToBeChanged) {
+          for (ContainerResourceToBeChanged c : containersToBeChanged) {
+            // if c is not in trackingContainers, it maybe removed (finished or
+            // killed) already, just skip
+            if (trackingContainers.get(c.containerId) == null) {
+              LOG.warn("note container not found in trackingContainers, "
+                  + "it maybe already completed, please check, containerId="
+                  + c.containerId.toString());
+              continue;
+            }
+            ProcessTreeInfo info = trackingContainers.get(c.containerId);
+            info.vmemLimit = c.vmemLimit;
+            info.pmemLimit = c.pmemLimit;
+          }
+          containersToBeChanged.clear();
         }
 
         // Now do the monitoring for the trackingContainers
@@ -547,6 +580,12 @@ public class ContainersMonitorImpl extends AbstractService implements
         this.containersToBeRemoved.add(containerId);
       }
       break;
+    case CHANGE_MONITORING_CONTAINER:
+      ContainerChangeMonitoringEvent event = (ContainerChangeMonitoringEvent) monitoringEvent;
+      synchronized (this.containersToBeChanged) {
+        this.containersToBeChanged.add(new ContainerResourceToBeChanged(
+            containerId, event.getVmemLimit(), event.getPmemLimit()));
+      }
     default:
       // TODO: Wrong event.
     }

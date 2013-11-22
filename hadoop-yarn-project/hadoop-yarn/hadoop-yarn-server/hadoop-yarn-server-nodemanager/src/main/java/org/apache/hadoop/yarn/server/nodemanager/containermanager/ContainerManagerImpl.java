@@ -68,6 +68,9 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
+import org.apache.hadoop.yarn.api.records.ResourceIncreaseContext;
 import org.apache.hadoop.yarn.api.records.SerializedException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
@@ -104,6 +107,7 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Cont
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerEventType;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerImpl;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerKillEvent;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerState;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.launcher.ContainersLauncher;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.launcher.ContainersLauncherEventType;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.ResourceLocalizationService;
@@ -112,6 +116,7 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.logaggregation
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.LogHandler;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.NonAggregatingLogHandler;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.event.LogHandlerEventType;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor.ContainerChangeMonitoringEvent;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor.ContainersMonitor;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor.ContainersMonitorEventType;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor.ContainersMonitorImpl;
@@ -895,12 +900,112 @@ public class ContainerManagerImpl extends CompositeService implements
   public Map<String, ByteBuffer> getAuxServiceMetaData() {
     return this.auxiliaryServices.getMetaData();
   }
+  
+  @Private
+  @VisibleForTesting
+  protected void authorizeIncreaseRequest(NMTokenIdentifier nmTokenIdentifier,
+      ContainerTokenIdentifier containerTokenIdentifier, ContainerId requestId,
+      Resource target) throws YarnException {
+    ContainerId containerId = containerTokenIdentifier.getContainerID();
+    String containerIDStr = containerId.toString();
+    boolean unauthorized = false;
+    StringBuilder messageBuilder =
+        new StringBuilder("Unauthorized request to change container. ");
+    if (!nmTokenIdentifier.getApplicationAttemptId().equals(
+        containerId.getApplicationAttemptId())) {
+      unauthorized = true;
+      messageBuilder.append("\nNMToken for application attempt : ")
+        .append(nmTokenIdentifier.getApplicationAttemptId())
+        .append(" was used for starting container with container token")
+        .append(" issued for application attempt : ")
+        .append(containerId.getApplicationAttemptId());
+    } else if (!this.context.getContainerTokenSecretManager()
+        .isValidStartContainerRequest(containerTokenIdentifier)) {
+      // Is the container being relaunched? Or RPC layer let startCall with
+      // tokens generated off old-secret through?
+      unauthorized = true;
+      messageBuilder.append("\n Attempt to relaunch the same ")
+        .append("container with id ").append(containerIDStr).append(".");
+    } else if (containerTokenIdentifier.getContainerID().equals(requestId)) {
+      unauthorized = true;
+      messageBuilder
+          .append("\n requested containerId is not equals to containerid in token");
+    } else if (containerTokenIdentifier.getResource().equals(target)) {
+      unauthorized = true;
+      messageBuilder
+          .append("\n requested resource is not equals to resource in token");
+    }
+    if (unauthorized) {
+      String msg = messageBuilder.toString();
+      LOG.error(msg);
+      throw RPCUtil.getRemoteException(msg);
+    }
+  }
 
   @Override
   public ChangeContainersResourceResponse changeContainersResource(
       ChangeContainersResourceRequest request) throws YarnException,
       IOException {
-    // TODO Auto-generated method stub
-    return null;
+    // get NMToken identifier 
+    UserGroupInformation remoteUgi = getRemoteUgi();
+    NMTokenIdentifier nmIdentifier = selectNMTokenIdentifier(remoteUgi);
+    
+    List<ContainerId> succeedChangedContainers = new ArrayList<ContainerId>();
+    List<ContainerId> failedChangedContainers = new ArrayList<ContainerId>();
+    
+    // first add all decreased containers to failed, we will support it in the future
+    for (ResourceChangeContext r : request.getContainersToDecrease()) {
+      if (r.getExistingContainerId() != null) {
+        failedChangedContainers.add(r.getExistingContainerId());
+      }
+    }
+    
+    // loop all increase request to check
+    for (ResourceIncreaseContext r : request.getContainersToIncrease()) {
+      ContainerId containerId = r.getResourceChangeContext().getExistingContainerId();
+      Resource resource = r.getResourceChangeContext().getTargetCapability();
+      ContainerTokenIdentifier containerTokenIdentifier =
+          BuilderUtils.newContainerTokenIdentifier(r.getContainerToken());
+      authorizeIncreaseRequest(nmIdentifier,
+        containerTokenIdentifier, containerId, resource);
+      
+      
+      // check container's existance
+      if (context.getContainers().get(containerId) == null) {
+        LOG.error("failed to increase size of container because this container not existed in this node:"
+            + containerId.toString());
+        failedChangedContainers.add(containerId);
+        continue;
+      }
+      
+      // check container's state
+      ContainerState currentState = context.getContainers().get(containerId)
+          .getContainerState();
+      if (currentState != ContainerState.RUNNING) {
+        LOG.error("we can only increase size of container in RUNNING state, containerId="
+            + containerId.toString()
+            + " current state is:"
+            + currentState.name());
+        failedChangedContainers.add(containerId);
+        continue;
+      }
+      
+      // create ChangeContainerMonitoringEvent
+      long pmemBytes = resource.getMemory() * 1024 * 1024L;
+      float pmemRatio = getConfig().getFloat(
+          YarnConfiguration.NM_VMEM_PMEM_RATIO,
+          YarnConfiguration.DEFAULT_NM_VMEM_PMEM_RATIO);
+      long vmemBytes = (long) (pmemRatio * pmemBytes);
+      ContainerChangeMonitoringEvent monitorEvent = new ContainerChangeMonitoringEvent(
+          containerId, vmemBytes, pmemBytes);
+      containersMonitor.handle(monitorEvent);
+      
+      // we can consider this should successfully changed
+      succeedChangedContainers.add(containerId);
+    }
+    
+    ChangeContainersResourceResponse response = ChangeContainersResourceResponse
+        .newInstance(succeedChangedContainers, failedChangedContainers);
+    return response;
   }
 }
