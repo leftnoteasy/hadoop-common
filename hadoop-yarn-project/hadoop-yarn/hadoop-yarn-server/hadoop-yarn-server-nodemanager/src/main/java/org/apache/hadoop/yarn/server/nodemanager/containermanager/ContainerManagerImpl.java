@@ -926,11 +926,11 @@ public class ContainerManagerImpl extends CompositeService implements
       unauthorized = true;
       messageBuilder.append("\n Attempt to relaunch the same ")
         .append("container with id ").append(containerIDStr).append(".");
-    } else if (containerTokenIdentifier.getContainerID().equals(requestId)) {
+    } else if (!containerTokenIdentifier.getContainerID().equals(requestId)) {
       unauthorized = true;
       messageBuilder
           .append("\n requested containerId is not equals to containerid in token");
-    } else if (containerTokenIdentifier.getResource().equals(target)) {
+    } else if (!containerTokenIdentifier.getResource().equals(target)) {
       unauthorized = true;
       messageBuilder
           .append("\n requested resource is not equals to resource in token");
@@ -966,9 +966,14 @@ public class ContainerManagerImpl extends CompositeService implements
       Resource resource = r.getResourceChangeContext().getTargetCapability();
       ContainerTokenIdentifier containerTokenIdentifier =
           BuilderUtils.newContainerTokenIdentifier(r.getContainerToken());
-      authorizeIncreaseRequest(nmIdentifier,
-        containerTokenIdentifier, containerId, resource);
       
+      try {
+        authorizeIncreaseRequest(nmIdentifier, containerTokenIdentifier,
+            containerId, resource);
+      } catch (YarnException e) {
+        failedChangedContainers.add(containerId);
+        continue;
+      }
       
       // check container's existance
       if (context.getContainers().get(containerId) == null) {

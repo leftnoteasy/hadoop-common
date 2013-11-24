@@ -40,6 +40,8 @@ import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.util.Shell;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
@@ -58,6 +60,8 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
+import org.apache.hadoop.yarn.api.records.ResourceIncreaseContext;
 import org.apache.hadoop.yarn.api.records.SerializedException;
 import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.api.records.URL;
@@ -791,6 +795,106 @@ public class TestContainerManager extends BaseContainerManagerTest {
     Assert.assertTrue(response.getFailedRequests().get(cId).getMessage()
         .contains("The auxService:" + serviceName + " does not exist"));
   }
+  
+  // @Test
+  public void testContainersChangeResource() throws Exception {
+    containerManager.start();
+
+    // first we will start containers 0..9
+
+    List<StartContainerRequest> list = new ArrayList<StartContainerRequest>();
+    ContainerLaunchContext containerLaunchContext = recordFactory
+        .newRecordInstance(ContainerLaunchContext.class);
+    for (int i = 0; i < 4; i++) {
+      ContainerId cId = createContainerId(i);
+      long identifier = DUMMY_RM_IDENTIFIER;
+      Token containerToken = createContainerToken(cId, identifier,
+          context.getNodeId(), user, context.getContainerTokenSecretManager());
+      StartContainerRequest request = StartContainerRequest.newInstance(
+          containerLaunchContext, containerToken);
+      list.add(request);
+    }
+    StartContainersRequest requestList = StartContainersRequest
+        .newInstance(list);
+
+    StartContainersResponse response = containerManager
+        .startContainers(requestList);
+
+    Assert.assertEquals(4, response.getSuccessfullyStartedContainers().size());
+    for (int i = 0; i < response.getSuccessfullyStartedContainers().size(); i++) {
+      // Containers with odd id should succeed.
+      Assert.assertEquals(i, response.getSuccessfullyStartedContainers().get(i)
+          .getId());
+    }
+
+    // we will create some change request,
+    List<ResourceIncreaseContext> increaseContexts = new ArrayList<ResourceIncreaseContext>();
+
+    // add change request for container-0, the resource not match
+    {
+      ContainerId cId = createContainerId(0);
+      long identifier = DUMMY_RM_IDENTIFIER;
+      Token containerToken = createContainerToken(cId, identifier,
+          context.getNodeId(), user, context.getContainerTokenSecretManager(),
+          Resource.newInstance(9999, 3));
+      ResourceIncreaseContext context = ResourceIncreaseContext
+          .newInstance(
+              ResourceChangeContext.newInstance(cId,
+                  Resource.newInstance(3333, 4)), containerToken);
+      increaseContexts.add(context);
+    }
+    // add change request for container-7, not existed in system
+    {
+      ContainerId cId = createContainerId(7);
+      long identifier = DUMMY_RM_IDENTIFIER;
+      Token containerToken = createContainerToken(cId, identifier,
+          context.getNodeId(), user, context.getContainerTokenSecretManager(),
+          Resource.newInstance(9999, 3));
+      ResourceIncreaseContext context = ResourceIncreaseContext
+          .newInstance(
+              ResourceChangeContext.newInstance(cId,
+                  Resource.newInstance(9999, 3)), containerToken);
+      increaseContexts.add(context);
+    }
+    // add change request for container-2, correct
+    {
+      ContainerId cId = createContainerId(2);
+      long identifier = DUMMY_RM_IDENTIFIER;
+      Token containerToken = createContainerToken(cId, identifier,
+          context.getNodeId(), user, context.getContainerTokenSecretManager(),
+          Resource.newInstance(9999, 3));
+      ResourceIncreaseContext context = ResourceIncreaseContext
+          .newInstance(
+              ResourceChangeContext.newInstance(cId,
+                  Resource.newInstance(9999, 3)), containerToken);
+      increaseContexts.add(context);
+    }
+    // add change request for container-3, not existed in system
+    {
+      ContainerId cId = createContainerId(3);
+      long identifier = DUMMY_RM_IDENTIFIER;
+      Token containerToken = createContainerToken(cId, identifier,
+          context.getNodeId(), user, context.getContainerTokenSecretManager(),
+          Resource.newInstance(9999, 3));
+      ResourceIncreaseContext context = ResourceIncreaseContext
+          .newInstance(
+              ResourceChangeContext.newInstance(cId,
+                  Resource.newInstance(9999, 3)), containerToken);
+      increaseContexts.add(context);
+    }
+    ChangeContainersResourceRequest changeRequest = ChangeContainersResourceRequest
+        .newInstance(increaseContexts, null);
+    ChangeContainersResourceResponse changeResponse = containerManager
+        .changeContainersResource(changeRequest);
+    
+    // check response
+    Assert.assertEquals(2, changeResponse.getFailedChangedContainers().size());
+    Assert.assertEquals(0, changeResponse.getFailedChangedContainers().get(0).getId());
+    Assert.assertEquals(7, changeResponse.getFailedChangedContainers().get(1).getId());
+    Assert.assertEquals(2, changeResponse.getSucceedChangedContainers().size());
+    Assert.assertEquals(2, changeResponse.getSucceedChangedContainers().get(0).getId());
+    Assert.assertEquals(3, changeResponse.getSucceedChangedContainers().get(1).getId());
+  }
 
   public static Token createContainerToken(ContainerId cId, long rmIdentifier,
       NodeId nodeId, String user,
@@ -799,6 +903,21 @@ public class TestContainerManager extends BaseContainerManagerTest {
     Resource r = BuilderUtils.newResource(1024, 1);
     ContainerTokenIdentifier containerTokenIdentifier =
         new ContainerTokenIdentifier(cId, nodeId.toString(), user, r,
+          System.currentTimeMillis() + 100000L, 123, rmIdentifier);
+    Token containerToken =
+        BuilderUtils
+          .newContainerToken(nodeId, containerTokenSecretManager
+            .retrievePassword(containerTokenIdentifier),
+            containerTokenIdentifier);
+    return containerToken;
+  }
+  
+  public static Token createContainerToken(ContainerId cId, long rmIdentifier,
+      NodeId nodeId, String user,
+      NMContainerTokenSecretManager containerTokenSecretManager, Resource resource)
+      throws IOException {
+    ContainerTokenIdentifier containerTokenIdentifier =
+        new ContainerTokenIdentifier(cId, nodeId.toString(), user, resource,
           System.currentTimeMillis() + 100000L, 123, rmIdentifier);
     Token containerToken =
         BuilderUtils
