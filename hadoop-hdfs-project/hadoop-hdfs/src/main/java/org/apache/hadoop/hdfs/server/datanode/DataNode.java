@@ -96,6 +96,8 @@ import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.management.ObjectName;
+
 import static org.apache.hadoop.hdfs.DFSConfigKeys.*;
 import static org.apache.hadoop.util.ExitUtil.terminate;
 
@@ -205,11 +207,13 @@ public class DataNode extends Configured
   private SecureResources secureResources = null;
   private AbstractList<File> dataDirs;
   private Configuration conf;
+  private final long maxNumberOfBlocksToLog;
 
   private final List<String> usersWithLocalPathAccess;
   private boolean connectToDnViaHostname;
   ReadaheadPool readaheadPool;
   private final boolean getHdfsBlockLocationsEnabled;
+  private ObjectName dataNodeInfoBeanName;
 
   /**
    * Create the DataNode given a configuration and an array of dataDirs.
@@ -228,6 +232,8 @@ public class DataNode extends Configured
            final AbstractList<File> dataDirs,
            final SecureResources resources) throws IOException {
     super(conf);
+    this.maxNumberOfBlocksToLog = conf.getLong(DFS_MAX_NUM_BLOCKS_TO_LOG_KEY,
+        DFS_MAX_NUM_BLOCKS_TO_LOG_DEFAULT);
 
     this.usersWithLocalPathAccess = Arrays.asList(
         conf.getTrimmedStrings(DFSConfigKeys.DFS_BLOCK_LOCAL_PATH_ACCESS_USER_KEY));
@@ -664,7 +670,7 @@ public class DataNode extends Configured
             " size (%s) is greater than zero and native code is not available.",
             DFS_DATANODE_MAX_LOCKED_MEMORY_KEY));
       }
-      long ulimit = NativeIO.getMemlockLimit();
+      long ulimit = NativeIO.POSIX.getCacheManipulator().getMemlockLimit();
       if (dnConf.maxLockedMemory > ulimit) {
       throw new RuntimeException(String.format(
           "Cannot start datanode because the configured max locked memory" +
@@ -879,7 +885,7 @@ public class DataNode extends Configured
   }
   
   private void registerMXBean() {
-    MBeans.register("DataNode", "DataNodeInfo", this);
+    dataNodeInfoBeanName = MBeans.register("DataNode", "DataNodeInfo", this);
   }
   
   @VisibleForTesting
@@ -1026,6 +1032,10 @@ public class DataNode extends Configured
               + "authorization. The user " + currentUser
               + " is not allowed to call getBlockLocalPathInfo");
     }
+  }
+
+  public long getMaxNumberOfBlocksToLog() {
+    return maxNumberOfBlocksToLog;
   }
 
   @Override
@@ -1235,6 +1245,10 @@ public class DataNode extends Configured
     }
     if (metrics != null) {
       metrics.shutdown();
+    }
+    if (dataNodeInfoBeanName != null) {
+      MBeans.unregister(dataNodeInfoBeanName);
+      dataNodeInfoBeanName = null;
     }
   }
   
@@ -1770,7 +1784,7 @@ public class DataNode extends Configured
       } catch (IOException ioe) {
         LOG.warn("Invalid " + DFS_DATANODE_DATA_DIR_KEY + " "
             + dir + " : ", ioe);
-        invalidDirs.append("\"").append(dir.getCanonicalPath()).append("\" ");
+        invalidDirs.append("\"").append(dirURI.getPath()).append("\" ");
       }
     }
     if (dirs.size() == 0) {
