@@ -22,6 +22,8 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.ChangeContainersResourceResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
@@ -169,5 +171,17 @@ public interface ContainerManagementProtocol {
   @Stable
   GetContainerStatusesResponse getContainerStatuses(
       GetContainerStatusesRequest request) throws YarnException,
+      IOException;
+  
+  /**
+   * The API used by the <code>ApplicationMaster</code> to request change
+   * running containers in this node
+   * 
+   * @throws YarnException
+   * @throws IOException
+   */
+  @Public
+  ChangeContainersResourceResponse changeContainersResource(
+      ChangeContainersResourceRequest request) throws YarnException,
       IOException;
 }

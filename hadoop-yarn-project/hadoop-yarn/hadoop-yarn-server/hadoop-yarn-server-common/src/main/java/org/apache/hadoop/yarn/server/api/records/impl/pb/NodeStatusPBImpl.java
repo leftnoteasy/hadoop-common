@@ -26,12 +26,16 @@ import java.util.List;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
 import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationIdPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.NodeIdPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.ProtoBase;
+import org.apache.hadoop.yarn.api.records.impl.pb.ResourceChangeContextPBImpl;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerStatusProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.NodeIdProto;
+import org.apache.hadoop.yarn.proto.YarnProtos.ResourceChangeContextProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeHealthStatusProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeStatusProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeStatusProtoOrBuilder;
@@ -48,6 +52,7 @@ public class NodeStatusPBImpl extends NodeStatus {
   private List<ContainerStatus> containers = null;
   private NodeHealthStatus nodeHealthStatus = null;
   private List<ApplicationId> keepAliveApplications = null;
+  private List<ResourceChangeContext> newDecreasedContainers = null;
   
   public NodeStatusPBImpl() {
     builder = NodeStatusProto.newBuilder();
@@ -77,6 +82,9 @@ public class NodeStatusPBImpl extends NodeStatus {
     }
     if (this.keepAliveApplications != null) {
       addKeepAliveApplicationsToProto();
+    }
+    if (this.newDecreasedContainers != null) {
+    	addNewDecreasedContainersToProto();
     }
   }
 
@@ -163,6 +171,41 @@ public class NodeStatusPBImpl extends NodeStatus {
     };
     builder.addAllKeepAliveApplications(iterable);
   }
+  
+  private synchronized void addNewDecreasedContainersToProto() {
+    maybeInitBuilder();
+    builder.clearNewDecreasedContainers();
+    if (newDecreasedContainers == null)
+      return;
+    Iterable<ResourceChangeContextProto> iterable = new Iterable<ResourceChangeContextProto>() {
+      @Override
+      public Iterator<ResourceChangeContextProto> iterator() {
+        return new Iterator<ResourceChangeContextProto>() {
+  
+          Iterator<ResourceChangeContext> iter = newDecreasedContainers.iterator();
+  
+          @Override
+          public boolean hasNext() {
+            return iter.hasNext();
+          }
+  
+          @Override
+          public ResourceChangeContextProto next() {
+            return convertToProtoFormat(iter.next());
+          }
+  
+          @Override
+          public void remove() {
+            throw new UnsupportedOperationException();
+  
+          }
+        };
+  
+      }
+    };
+    builder.addAllNewDecreasedContainers(iterable);
+  }
+
 
   @Override
   public int hashCode() {
@@ -291,6 +334,35 @@ public class NodeStatusPBImpl extends NodeStatus {
     this.nodeHealthStatus = healthStatus;
   }
 
+  @Override
+  public void setNewDecreasedContainers(
+      List<ResourceChangeContext> decreasedContainers) {
+    if (decreasedContainers == null) {
+      builder.clearNewDecreasedContainers();
+    }
+    this.newDecreasedContainers = decreasedContainers;
+  }
+
+  @Override
+  public List<ResourceChangeContext> getNewsDecreasedContainers() {
+    initDecreasedContainers();
+    return this.newDecreasedContainers;
+  }
+
+  private synchronized void initDecreasedContainers() {
+    if (this.newDecreasedContainers != null) {
+      return;
+    }
+    NodeStatusProtoOrBuilder p = viaProto ? proto : builder;
+    List<ResourceChangeContextProto> list = p.getNewDecreasedContainersList();
+    this.newDecreasedContainers = new ArrayList<ResourceChangeContext>();
+
+    for (ResourceChangeContextProto c : list) {
+      this.newDecreasedContainers.add(convertFromProtoFormat(c));
+    }
+
+  }
+
   private NodeIdProto convertToProtoFormat(NodeId nodeId) {
     return ((NodeIdPBImpl)nodeId).getProto();
   }
@@ -314,6 +386,14 @@ public class NodeStatusPBImpl extends NodeStatus {
   
   private ContainerStatusProto convertToProtoFormat(ContainerStatus c) {
     return ((ContainerStatusPBImpl)c).getProto();
+  }
+  
+  private ResourceChangeContextProto convertToProtoFormat(ResourceChangeContext t) {
+  	return ((ResourceChangeContextPBImpl)t).getProto();
+  }
+  
+  private ResourceChangeContext convertFromProtoFormat(ResourceChangeContextProto p) {
+  	return new ResourceChangeContextPBImpl(p);
   }
   
   private ApplicationIdPBImpl convertFromProtoFormat(ApplicationIdProto c) {

@@ -229,3 +229,13 @@ message GetContainerStatusesResponseProto {
   repeated ContainerStatusProto status = 1;
   repeated ContainerExceptionMapProto failed_requests = 2;
 }
+
+message ChangeContainersResourceRequestProto {
+ repeated ResourceIncreaseContextProto increase_containers = 1;
+ repeated ResourceChangeContextProto decrease_containers = 2;
+}
+
+message ChangeContainersResourceResponseProto {
+ repeated ContainerIdProto succeed_changed_containers = 1;
+ repeated ContainerIdProto failed_changed_containers = 2;
+}
