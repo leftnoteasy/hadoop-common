@@ -33,17 +33,23 @@ import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.PreemptionMessage;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceChangeContext;
+import org.apache.hadoop.yarn.api.records.ResourceIncreaseContext;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.NMTokenPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.NodeReportPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.PreemptionMessagePBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ProtoUtils;
+import org.apache.hadoop.yarn.api.records.impl.pb.ResourceChangeContextPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.ResourceIncreaseContextPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerStatusProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.NodeReportProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.PreemptionMessageProto;
+import org.apache.hadoop.yarn.proto.YarnProtos.ResourceChangeContextProto;
+import org.apache.hadoop.yarn.proto.YarnProtos.ResourceIncreaseContextProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceProto;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.AllocateResponseProto;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.AllocateResponseProtoOrBuilder;
@@ -63,6 +69,8 @@ public class AllocateResponsePBImpl extends AllocateResponse {
   private List<Container> allocatedContainers = null;
   private List<NMToken> nmTokens = null;
   private List<ContainerStatus> completedContainersStatuses = null;
+  private List<ResourceIncreaseContext> increasedContainers = null;
+  private List<ResourceChangeContext> decreasedContainers = null;
 
   private List<NodeReport> updatedNodes = null;
   private PreemptionMessage preempt;
@@ -108,7 +116,7 @@ public class AllocateResponsePBImpl extends AllocateResponse {
     if (this.allocatedContainers != null) {
       builder.clearAllocatedContainers();
       Iterable<ContainerProto> iterable =
-          getProtoIterable(this.allocatedContainers);
+          getContainerProtoIterable(this.allocatedContainers);
       builder.addAllAllocatedContainers(iterable);
     }
     if (nmTokens != null) {
@@ -133,6 +141,16 @@ public class AllocateResponsePBImpl extends AllocateResponse {
     }
     if (this.preempt != null) {
       builder.setPreempt(convertToProtoFormat(this.preempt));
+    }
+    if (this.increasedContainers != null) {
+      builder.clearIncreasedContainers();
+      Iterable<ResourceIncreaseContextProto> iterable = getIncreaseProtoIterable(this.increasedContainers);
+      builder.addAllIncreasedContainers(iterable);
+    }
+    if (this.decreasedContainers != null) {
+      builder.clearDecreasedContainers();
+      Iterable<ResourceChangeContextProto> iterable = getChangeProtoIterable(this.decreasedContainers);
+      builder.addAllDecreasedContainers(iterable);
     }
   }
 
@@ -306,6 +324,63 @@ public class AllocateResponsePBImpl extends AllocateResponse {
     this.preempt = preempt;
   }
 
+  @Override
+  public synchronized List<ResourceIncreaseContext> getIncreasedContainers() {
+    initLocalIncreasedContainerList();
+    return increasedContainers;
+  }
+
+  @Override
+  public synchronized void setIncreasedContainers(
+      List<ResourceIncreaseContext> increasedContainers) {
+    if (increasedContainers == null)
+      return;
+    initLocalIncreasedContainerList();
+    this.increasedContainers.addAll(increasedContainers);
+  }
+
+  @Override
+  public synchronized List<ResourceChangeContext> getDecreasedContainers() {
+    initLocalDecreasedContainerList();
+    return decreasedContainers;
+  }
+
+  @Override
+  public synchronized void setDecreasedContainers(
+      List<ResourceChangeContext> decreasedContainers) {
+    if (decreasedContainers == null) {
+      return;
+    }
+    initLocalDecreasedContainerList();
+    this.decreasedContainers.addAll(decreasedContainers);
+  }
+
+  private synchronized void initLocalIncreasedContainerList() {
+    if (this.increasedContainers != null) {
+      return;
+    }
+    AllocateResponseProtoOrBuilder p = viaProto ? proto : builder;
+    List<ResourceIncreaseContextProto> list = p.getIncreasedContainersList();
+    increasedContainers = new ArrayList<ResourceIncreaseContext>();
+
+    for (ResourceIncreaseContextProto c : list) {
+      increasedContainers.add(convertFromProtoFormat(c));
+    }
+  }
+
+  private synchronized void initLocalDecreasedContainerList() {
+    if (this.decreasedContainers != null) {
+      return;
+    }
+    AllocateResponseProtoOrBuilder p = viaProto ? proto : builder;
+    List<ResourceChangeContextProto> list = p.getDecreasedContainersList();
+    decreasedContainers = new ArrayList<ResourceChangeContext>();
+
+    for (ResourceChangeContextProto c : list) {
+      decreasedContainers.add(convertFromProtoFormat(c));
+    }
+  }
+
   // Once this is called. updatedNodes will never be null - until a getProto is
   // called.
   private synchronized void initLocalNewNodeReportList() {
@@ -348,7 +423,69 @@ public class AllocateResponsePBImpl extends AllocateResponse {
     }
   }
 
-  private synchronized Iterable<ContainerProto> getProtoIterable(
+  private synchronized Iterable<ResourceIncreaseContextProto> getIncreaseProtoIterable(
+      final List<ResourceIncreaseContext> newContainersList) {
+    maybeInitBuilder();
+    return new Iterable<ResourceIncreaseContextProto>() {
+      @Override
+      public synchronized Iterator<ResourceIncreaseContextProto> iterator() {
+        return new Iterator<ResourceIncreaseContextProto>() {
+
+          Iterator<ResourceIncreaseContext> iter = newContainersList.iterator();
+
+          @Override
+          public synchronized boolean hasNext() {
+            return iter.hasNext();
+          }
+
+          @Override
+          public synchronized ResourceIncreaseContextProto next() {
+            return convertToProtoFormat(iter.next());
+          }
+
+          @Override
+          public synchronized void remove() {
+            throw new UnsupportedOperationException();
+
+          }
+        };
+
+      }
+    };
+  }
+  
+  private synchronized Iterable<ResourceChangeContextProto> getChangeProtoIterable(
+      final List<ResourceChangeContext> newContainersList) {
+    maybeInitBuilder();
+    return new Iterable<ResourceChangeContextProto>() {
+      @Override
+      public synchronized Iterator<ResourceChangeContextProto> iterator() {
+        return new Iterator<ResourceChangeContextProto>() {
+
+          Iterator<ResourceChangeContext> iter = newContainersList.iterator();
+
+          @Override
+          public synchronized boolean hasNext() {
+            return iter.hasNext();
+          }
+
+          @Override
+          public synchronized ResourceChangeContextProto next() {
+            return convertToProtoFormat(iter.next());
+          }
+
+          @Override
+          public synchronized void remove() {
+            throw new UnsupportedOperationException();
+
+          }
+        };
+
+      }
+    };
+  }
+  
+  private synchronized Iterable<ContainerProto> getContainerProtoIterable(
       final List<Container> newContainersList) {
     maybeInitBuilder();
     return new Iterable<ContainerProto>() {
@@ -486,6 +623,22 @@ public class AllocateResponsePBImpl extends AllocateResponse {
       completedContainersStatuses.add(convertFromProtoFormat(c));
     }
   }
+  
+  private synchronized ResourceChangeContext convertFromProtoFormat(ResourceChangeContextProto p) {
+    return new ResourceChangeContextPBImpl(p);
+  }
+  
+  private synchronized ResourceChangeContextProto convertToProtoFormat(ResourceChangeContext t) {
+    return ((ResourceChangeContextPBImpl)t).getProto();
+  }
+  
+  private synchronized ResourceIncreaseContext convertFromProtoFormat(ResourceIncreaseContextProto p) {
+    return new ResourceIncreaseContextPBImpl(p);
+  }
+  
+  private synchronized ResourceIncreaseContextProto convertToProtoFormat(ResourceIncreaseContext t) {
+    return ((ResourceIncreaseContextPBImpl)t).getProto();
+  }
 
   private synchronized NodeReportPBImpl convertFromProtoFormat(
       NodeReportProto p) {
@@ -500,8 +653,9 @@ public class AllocateResponsePBImpl extends AllocateResponse {
       ContainerProto p) {
     return new ContainerPBImpl(p);
   }
-
-  private synchronized ContainerProto convertToProtoFormat(Container t) {
+  
+  private synchronized ContainerProto convertToProtoFormat(
+      Container t) {
     return ((ContainerPBImpl)t).getProto();
   }
 
