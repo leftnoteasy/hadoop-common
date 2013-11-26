@@ -912,4 +912,12 @@ public class ContainerManagerImpl extends CompositeService implements
   public Map<String, ByteBuffer> getAuxServiceMetaData() {
     return this.auxiliaryServices.getMetaData();
   }
+
+  @Override
+  public ChangeContainersResourceResponse changeContainersResource(
+      ChangeContainersResourceRequest request) throws YarnException,
+      IOException {
+    // TODO Auto-generated method stub
+    return null;
+  }
 }
