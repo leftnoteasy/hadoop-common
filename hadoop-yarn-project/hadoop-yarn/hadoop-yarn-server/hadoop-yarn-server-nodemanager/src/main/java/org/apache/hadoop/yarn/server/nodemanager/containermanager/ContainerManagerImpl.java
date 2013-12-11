@@ -940,7 +940,7 @@ public class ContainerManagerImpl extends CompositeService implements
   private void internalChangeContainerResource(ContainerId containerId,
       Resource resource, List<ContainerId> succeedChangedContainers,
       List<ContainerId> failedChangedContainers,
-      ContainerResourceDecrease decrease) {
+      ContainerResourceDecrease decrease) throws YarnException {
     // check container's existence
     if (context.getContainers().get(containerId) == null) {
       LOG.error("failed to increase size of container because"
@@ -979,7 +979,12 @@ public class ContainerManagerImpl extends CompositeService implements
     // if it's a succeed decreased container, add it to context, this will be
     // used by NodeStatusUpdater
     if (null != decrease) {
-      context.getDecreasedContainers().offer(decrease);
+      if (!context.getDecreasedContainers().offer(decrease)) {
+        LOG.error("Failed to decreased container"
+            + " to queue in NMContext, this shouldn't happen.");
+        throw new YarnException("Failed to decreased container"
+            + " to queue in NMContext, this shouldn't happen.");
+      }
     }
   }
 
