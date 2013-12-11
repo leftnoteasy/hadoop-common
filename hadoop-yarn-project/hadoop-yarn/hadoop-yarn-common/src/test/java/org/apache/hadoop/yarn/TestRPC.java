@@ -225,7 +225,6 @@ public class TestRPC {
     public ChangeContainersResourceResponse changeContainersResource(
         ChangeContainersResourceRequest request) throws YarnException,
         IOException {
-      // TODO Auto-generated method stub
       return null;
     }
   }

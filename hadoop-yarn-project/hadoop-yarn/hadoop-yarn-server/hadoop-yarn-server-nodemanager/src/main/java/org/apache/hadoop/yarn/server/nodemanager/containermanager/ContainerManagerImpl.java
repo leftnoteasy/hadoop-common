@@ -951,9 +951,11 @@ public class ContainerManagerImpl extends CompositeService implements
     }
 
     // check container's state
-    org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerState currentState =
+    org.apache.hadoop.yarn.server.nodemanager.
+      containermanager.container.ContainerState currentState =
         context.getContainers().get(containerId).getContainerState();
-    if (currentState != org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerState.RUNNING) {
+    if (currentState != org.apache.hadoop.yarn.server.
+        nodemanager.containermanager.container.ContainerState.RUNNING) {
       LOG.warn("We can only increase size of container in"
           + " RUNNING state, containerId=" + containerId.toString()
           + " current state is:" + currentState.name());

@@ -442,12 +442,10 @@ public class TestContainerLauncher {
       throw new IOException(e);
     }
 
-    // add a stub here
     @Override
     public ChangeContainersResourceResponse changeContainersResource(
         ChangeContainersResourceRequest request) throws YarnException,
         IOException {
-      // TODO Auto-generated method stub
       return null;
     }
   }
