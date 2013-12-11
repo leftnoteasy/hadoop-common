@@ -20,23 +20,25 @@ package org.apache.hadoop.yarn.server.api.records;
 import java.util.List;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceDecrease;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.util.Records;
-
 
 public abstract class NodeStatus {
   
   public static NodeStatus newInstance(NodeId nodeId, int responseId,
       List<ContainerStatus> containerStatuses,
       List<ApplicationId> keepAliveApplications,
-      NodeHealthStatus nodeHealthStatus) {
+      NodeHealthStatus nodeHealthStatus,
+      List<ContainerResourceDecrease> decreasedContainers) {
     NodeStatus nodeStatus = Records.newRecord(NodeStatus.class);
     nodeStatus.setResponseId(responseId);
     nodeStatus.setNodeId(nodeId);
     nodeStatus.setContainersStatuses(containerStatuses);
     nodeStatus.setKeepAliveApplications(keepAliveApplications);
     nodeStatus.setNodeHealthStatus(nodeHealthStatus);
+    nodeStatus.setDecreasedContainers(decreasedContainers);
     return nodeStatus;
   }
 
@@ -55,4 +57,9 @@ public abstract class NodeStatus {
 
   public abstract void setNodeId(NodeId nodeId);
   public abstract void setResponseId(int responseId);
+  
+  public abstract void setDecreasedContainers(
+      List<ContainerResourceDecrease> decreasedContainers);
+
+  public abstract List<ContainerResourceDecrease> getDecreasedContainers();
 }

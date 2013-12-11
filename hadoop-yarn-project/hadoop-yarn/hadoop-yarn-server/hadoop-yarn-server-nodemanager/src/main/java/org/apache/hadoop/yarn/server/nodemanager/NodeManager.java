@@ -19,9 +19,11 @@
 package org.apache.hadoop.yarn.server.nodemanager;
 
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.logging.Log;
@@ -40,6 +42,7 @@ import org.apache.hadoop.yarn.YarnUncaughtExceptionHandler;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceDecrease;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
@@ -242,6 +245,8 @@ public class NodeManager extends CompositeService
         new ConcurrentHashMap<ApplicationId, Application>();
     private final ConcurrentMap<ContainerId, Container> containers =
         new ConcurrentSkipListMap<ContainerId, Container>();
+    private final BlockingQueue<ContainerResourceDecrease> decreasedContainers =
+        new LinkedBlockingQueue<ContainerResourceDecrease>();
 
     private final NMContainerTokenSecretManager containerTokenSecretManager;
     private final NMTokenSecretManagerInNM nmTokenSecretManager;
@@ -327,6 +332,11 @@ public class NodeManager extends CompositeService
     @Override
     public ApplicationACLsManager getApplicationACLsManager() {
       return aclsManager;
+    }
+
+    @Override
+    public BlockingQueue<ContainerResourceDecrease> getDecreasedContainers() {
+      return decreasedContainers;
     }
   }
 

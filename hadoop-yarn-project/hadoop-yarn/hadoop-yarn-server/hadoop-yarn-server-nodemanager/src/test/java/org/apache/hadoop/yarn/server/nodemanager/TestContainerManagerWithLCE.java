@@ -203,4 +203,10 @@ public class TestContainerManagerWithLCE extends TestContainerManager {
     linuxContainerExecutor.setConf(super.conf);
     return linuxContainerExecutor;
   }
+  
+  @Override
+  public void testContainersChangeResource() {
+    LOG.info("not running this test.");
+    return;
+  }
 }

@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Random;
 
 import org.apache.commons.logging.Log;
@@ -40,6 +41,7 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.VersionUtil;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceDecrease;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
@@ -338,9 +340,24 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
     LOG.debug(this.nodeId + " sending out status for "
         + containersStatuses.size() + " containers");
     NodeStatus nodeStatus = NodeStatus.newInstance(nodeId, responseId,
-      containersStatuses, createKeepAliveApplicationList(), nodeHealthStatus);
+      containersStatuses, createKeepAliveApplicationList(), nodeHealthStatus,
+      pullDecreasedContainers());
 
     return nodeStatus;
+  }
+  
+  private List<ContainerResourceDecrease> pullDecreasedContainers() {
+    List<ContainerResourceDecrease> decreasedContainers =
+        new ArrayList<ContainerResourceDecrease>();
+    ContainerResourceDecrease item = null;
+    try {
+      while (null != (item = context.getDecreasedContainers().remove())) {
+        decreasedContainers.add(item);
+      }
+    } catch (NoSuchElementException e) {
+      // do nothing
+    }
+    return decreasedContainers;
   }
 
   /*
