@@ -22,10 +22,9 @@ import java.util.Set;
 
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncrease;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
-import org.apache.hadoop.yarn.factories.RecordFactory;
-import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 
 public class Allocation {
 
@@ -34,24 +33,34 @@ public class Allocation {
   final Set<ContainerId> strictContainers;
   final Set<ContainerId> fungibleContainers;
   final List<ResourceRequest> fungibleResources;
+  final List<ContainerResourceIncrease> increasedContainers;
 
   public Allocation(List<Container> containers, Resource resourceLimit) {
-    this(containers, resourceLimit, null, null, null);
+    this(containers, resourceLimit, null, null, null, null);
   }
 
   public Allocation(List<Container> containers, Resource resourceLimit,
       Set<ContainerId> strictContainers) {
-    this(containers, resourceLimit, strictContainers, null, null);
+    this(containers, resourceLimit, strictContainers, null, null, null);
   }
 
   public Allocation(List<Container> containers, Resource resourceLimit,
       Set<ContainerId> strictContainers, Set<ContainerId> fungibleContainers,
       List<ResourceRequest> fungibleResources) {
+    this(containers, resourceLimit, strictContainers, fungibleContainers,
+        fungibleResources, null);
+  }
+
+  public Allocation(List<Container> containers, Resource resourceLimit,
+      Set<ContainerId> strictContainers, Set<ContainerId> fungibleContainers,
+      List<ResourceRequest> fungibleResources,
+      List<ContainerResourceIncrease> increasedContainers) {
     this.containers = containers;
     this.resourceLimit = resourceLimit;
     this.strictContainers = strictContainers;
     this.fungibleContainers = fungibleContainers;
     this.fungibleResources = fungibleResources;
+    this.increasedContainers = increasedContainers;
   }
 
   public List<Container> getContainers() {
@@ -73,5 +82,8 @@ public class Allocation {
   public List<ResourceRequest> getResourcePreemptions() {
     return fungibleResources;
   }
-
+   
+  public List<ContainerResourceIncrease> getIncreasedContainers() {
+    return increasedContainers;
+  }
 }

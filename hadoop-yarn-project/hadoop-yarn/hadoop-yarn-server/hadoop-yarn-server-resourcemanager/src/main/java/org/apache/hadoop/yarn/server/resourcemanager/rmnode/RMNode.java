@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceDecrease;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -147,4 +148,10 @@ public interface RMNode {
    * @return containerUpdates accumulated across NM heartbeats.
    */
   public List<UpdatedContainerInfo> pullContainerUpdates();
+  
+  /**
+   * Get and clear list of decreased containers accumulated across NM heartbeats
+   * @return decreased containers accumulated across NM heartbeats
+   */
+  public List<ContainerResourceDecrease> pullDecreasedContainers();
 }

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,6 +36,9 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
+import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
@@ -62,6 +66,9 @@ public class AppSchedulingInfo {
   final Map<Priority, Map<String, ResourceRequest>> requests = 
     new HashMap<Priority, Map<String, ResourceRequest>>();
   final Set<String> blacklist = new HashSet<String>();
+  final Map<NodeId, Map<ContainerId, ContainerResourceIncreaseRequest>> 
+    increaseRequestMap =
+      new HashMap<NodeId, Map<ContainerId, ContainerResourceIncreaseRequest>>();
   
   //private final ApplicationStore store;
   private final ActiveUsersManager activeUsersManager;
@@ -110,6 +117,36 @@ public class AppSchedulingInfo {
 
   public int getNewContainerId() {
     return this.containerIdCounter.incrementAndGet();
+  }
+  
+  synchronized public void addIncreaseRequests(NodeId nodeId,
+      ContainerResourceIncreaseRequest increaseRequest, Resource required) {
+    ContainerId cid = increaseRequest.getContainerId();
+    if (!increaseRequestMap.containsKey(nodeId)) {
+      increaseRequestMap.put(nodeId,
+          new HashMap<ContainerId, ContainerResourceIncreaseRequest>());
+    }
+
+    Map<ContainerId, ContainerResourceIncreaseRequest> cidToReq = 
+        increaseRequestMap.get(nodeId);
+
+    if (cidToReq.get(cid) != null) {
+      throw new IllegalStateException(
+          "illegal state, try to put increase request to map, "
+              + "but a same container-id already in increase request map, "
+              + "containerid=" + cid.toString());
+    }
+    cidToReq.put(cid, increaseRequest);
+
+    // update queue metrics
+    QueueMetrics metrics = queue.getMetrics();
+    metrics.incrPendingResources(user, required);
+  }
+  
+  synchronized public void decreaseContainerResource(Resource released) {
+    // update queue metrics
+    QueueMetrics metrics = queue.getMetrics();
+    metrics.releaseResources(user, released);
   }
 
   /**
@@ -221,6 +258,28 @@ public class AppSchedulingInfo {
     Map<String, ResourceRequest> nodeRequests = requests.get(priority);
     return (nodeRequests == null) ? null : nodeRequests.get(resourceName);
   }
+  
+  synchronized public List<ContainerResourceIncreaseRequest>
+      getResourceIncreaseRequests(NodeId nodeId) {
+    if (increaseRequestMap.get(nodeId) == null) {
+      return new ArrayList<ContainerResourceIncreaseRequest>();
+    }
+    List<ContainerResourceIncreaseRequest> requests =
+        new ArrayList<ContainerResourceIncreaseRequest>();
+    for (Entry<ContainerId, ContainerResourceIncreaseRequest> e : 
+        increaseRequestMap.get(nodeId).entrySet()) {
+      requests.add(e.getValue());
+    }
+    return requests;
+  }
+  
+  synchronized public ContainerResourceIncreaseRequest
+      getResourceIncreaseRequests(NodeId nodeId, ContainerId containerId) {
+    if (increaseRequestMap.get(nodeId) == null) {
+      return null;
+    }
+    return increaseRequestMap.get(nodeId).get(containerId);
+  }
 
   public synchronized Resource getResource(Priority priority) {
     ResourceRequest request = getResourceRequest(priority, ResourceRequest.ANY);
@@ -265,6 +324,23 @@ public class AppSchedulingInfo {
     LOG.debug("allocate: user: " + user + ", memory: "
         + request.getCapability());
     metrics.allocateResources(user, 1, request.getCapability());
+  }
+  
+  synchronized public void allocateIncreaseRequest(Resource required) {
+    QueueMetrics metrics = queue.getMetrics();
+    LOG.debug("allocate: user: " + user + ", memory: " + required);
+    metrics.allocateResources(user, required);
+  }
+  
+  synchronized public void removeIncreaseRequest(NodeId nodeId, 
+      ContainerId containerId) {
+    if (increaseRequestMap.get(nodeId) != null) {
+      Map<ContainerId, ContainerResourceIncreaseRequest> reqMap =
+          increaseRequestMap.get(nodeId);
+      if (reqMap.containsKey(containerId)) {
+        reqMap.remove(containerId);
+      }
+    }
   }
 
   /**

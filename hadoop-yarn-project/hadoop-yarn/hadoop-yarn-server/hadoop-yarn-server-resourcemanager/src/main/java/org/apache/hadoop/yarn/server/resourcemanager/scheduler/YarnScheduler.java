@@ -19,7 +19,6 @@
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 
 import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
@@ -30,6 +29,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
@@ -110,7 +110,8 @@ public interface YarnScheduler extends EventHandler<SchedulerEvent> {
       List<ResourceRequest> ask,
       List<ContainerId> release, 
       List<String> blacklistAdditions, 
-      List<String> blacklistRemovals);
+      List<String> blacklistRemovals,
+      List<ContainerResourceIncreaseRequest> increaseRequests);
 
   /**
    * Get node resource usage report.

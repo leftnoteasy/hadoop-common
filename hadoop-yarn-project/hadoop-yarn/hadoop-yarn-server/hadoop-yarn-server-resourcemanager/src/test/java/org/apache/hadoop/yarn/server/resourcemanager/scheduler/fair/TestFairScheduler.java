@@ -261,7 +261,7 @@ public class TestFairScheduler {
     ResourceRequest request = createResourceRequest(memory, vcores, ResourceRequest.ANY,
         priority, numContainers, true);
     ask.add(request);
-    scheduler.allocate(id, ask,  new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(id, ask,  new ArrayList<ContainerId>(), null, null, null);
     return id;
   }
   
@@ -283,7 +283,7 @@ public class TestFairScheduler {
       ApplicationAttemptId attId) {
     List<ResourceRequest> ask = new ArrayList<ResourceRequest>();
     ask.add(request);
-    scheduler.allocate(attId, ask,  new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(attId, ask,  new ArrayList<ContainerId>(), null, null, null);
   }
 
   // TESTS
@@ -801,7 +801,7 @@ public class TestFairScheduler {
     ResourceRequest request1 =
         createResourceRequest(minReqSize * 2, ResourceRequest.ANY, 1, 1, true);
     ask1.add(request1);
-    scheduler.allocate(id11, ask1, new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(id11, ask1, new ArrayList<ContainerId>(), null, null, null);
 
     // Second ask, queue2 requests 1 large + (2 * minReqSize)
     List<ResourceRequest> ask2 = new ArrayList<ResourceRequest>();
@@ -811,14 +811,14 @@ public class TestFairScheduler {
         false);
     ask2.add(request2);
     ask2.add(request3);
-    scheduler.allocate(id21, ask2, new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(id21, ask2, new ArrayList<ContainerId>(), null, null, null);
 
     // Third ask, queue2 requests 1 large
     List<ResourceRequest> ask3 = new ArrayList<ResourceRequest>();
     ResourceRequest request4 =
         createResourceRequest(2 * minReqSize, ResourceRequest.ANY, 1, 1, true);
     ask3.add(request4);
-    scheduler.allocate(id22, ask3, new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(id22, ask3, new ArrayList<ContainerId>(), null, null, null);
 
     scheduler.update();
 
@@ -1457,7 +1457,7 @@ public class TestFairScheduler {
     
     // Complete container
     scheduler.allocate(attId, new ArrayList<ResourceRequest>(),
-        Arrays.asList(containerId), null, null);
+        Arrays.asList(containerId), null, null, null);
     assertEquals(1024, scheduler.getRootQueueMetrics().getAvailableMB());
     assertEquals(4, scheduler.getRootQueueMetrics().getAvailableVirtualCores());
     
@@ -1538,7 +1538,7 @@ public class TestFairScheduler {
     asks.add(createResourceRequest(1024, node3.getRackName(), 1, 1, true));
     asks.add(createResourceRequest(1024, ResourceRequest.ANY, 1, 2, true));
 
-    scheduler.allocate(appId, asks, new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(appId, asks, new ArrayList<ContainerId>(), null, null, null);
     
     // node 1 checks in
     scheduler.update();
@@ -1911,7 +1911,7 @@ public class TestFairScheduler {
         createResourceRequest(1024, node1.getHostName(), 1, 0, true),
         createResourceRequest(1024, "rack1", 1, 0, true),
         createResourceRequest(1024, ResourceRequest.ANY, 1, 1, true));
-    scheduler.allocate(attId1, update, new ArrayList<ContainerId>(), null, null);
+    scheduler.allocate(attId1, update, new ArrayList<ContainerId>(), null, null, null);
     
     // then node2 should get the container
     scheduler.handle(node2UpdateEvent);
@@ -1956,7 +1956,7 @@ public class TestFairScheduler {
     anyRequest = createResourceRequest(1024, ResourceRequest.ANY,
         1, 1, false);
     scheduler.allocate(attId, Arrays.asList(rackRequest, anyRequest),
-        new ArrayList<ContainerId>(), null, null);
+        new ArrayList<ContainerId>(), null, null, null);
 
     scheduler.handle(nodeUpdateEvent);
     assertEquals(0, app.getReservedContainers().size());
@@ -2361,7 +2361,7 @@ public class TestFairScheduler {
     ResourceRequest request =
             createResourceRequest(1024, 1, ResourceRequest.ANY, 1, 1, true);
     ask.add(request);
-    fs.allocate(appAttemptId, ask, new ArrayList<ContainerId>(), null, null);
+    fs.allocate(appAttemptId, ask, new ArrayList<ContainerId>(), null, null, null);
 
     // waiting for continuous_scheduler_sleep_time
     // at least one pass
@@ -2380,7 +2380,7 @@ public class TestFairScheduler {
             createResourceRequest(1024, 1, ResourceRequest.ANY, 2, 1, true);
     ask.clear();
     ask.add(request);
-    fs.allocate(appAttemptId, ask, new ArrayList<ContainerId>(), null, null);
+    fs.allocate(appAttemptId, ask, new ArrayList<ContainerId>(), null, null, null);
 
     // Wait until app gets resources
     while (app.getCurrentConsumption()
@@ -2460,11 +2460,11 @@ public class TestFairScheduler {
     // Verify the blacklist can be updated independent of requesting containers
     scheduler.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
         Collections.<ContainerId>emptyList(),
-        Collections.singletonList(host), null);
+        Collections.singletonList(host), null, null);
     assertTrue(app.isBlacklisted(host));
     scheduler.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
         Collections.<ContainerId>emptyList(), null,
-        Collections.singletonList(host));
+        Collections.singletonList(host), null);
     assertFalse(scheduler.applications.get(appAttemptId).isBlacklisted(host));
 
     List<ResourceRequest> update = Arrays.asList(
@@ -2473,7 +2473,7 @@ public class TestFairScheduler {
     // Verify a container does not actually get placed on the blacklisted host
     scheduler.allocate(appAttemptId, update,
         Collections.<ContainerId>emptyList(),
-        Collections.singletonList(host), null);
+        Collections.singletonList(host), null, null);
     assertTrue(app.isBlacklisted(host));
     scheduler.update();
     scheduler.handle(updateEvent);
@@ -2483,7 +2483,7 @@ public class TestFairScheduler {
     // Verify a container gets placed on the empty blacklist
     scheduler.allocate(appAttemptId, update,
         Collections.<ContainerId>emptyList(), null,
-        Collections.singletonList(host));
+        Collections.singletonList(host), null);
     assertFalse(app.isBlacklisted(host));
     createSchedulingRequest(GB, "root.default", "user", 1);
     scheduler.update();

@@ -38,6 +38,7 @@ import org.apache.hadoop.net.Node;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceDecrease;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
@@ -84,6 +85,8 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
   private final WriteLock writeLock;
 
   private final ConcurrentLinkedQueue<UpdatedContainerInfo> nodeUpdateQueue;
+  private final ConcurrentLinkedQueue<ContainerResourceDecrease> 
+      decreasedContainerQueue;
   private volatile boolean nextHeartBeat = true;
 
   private final NodeId nodeId;
@@ -196,7 +199,9 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
 
     this.stateMachine = stateMachineFactory.make(this);
     
-    this.nodeUpdateQueue = new ConcurrentLinkedQueue<UpdatedContainerInfo>();  
+    this.nodeUpdateQueue = new ConcurrentLinkedQueue<UpdatedContainerInfo>();
+    this.decreasedContainerQueue =
+        new ConcurrentLinkedQueue<ContainerResourceDecrease>();
   }
 
   @Override
@@ -591,6 +596,14 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
             NodeState.UNHEALTHY);
         return NodeState.UNHEALTHY;
       }
+      
+      // add decreased containers
+      if (null != statusEvent.getDecreasedContaienrs()) {
+        for (ContainerResourceDecrease c : 
+            statusEvent.getDecreasedContaienrs()) {
+          rmNode.decreasedContainerQueue.add(c);
+        }
+      }
 
       // Filter the map to only obtain just launched containers and finished
       // containers.
@@ -692,6 +705,17 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
     }
     this.nextHeartBeat = true;
     return latestContainerInfoList;
+  }
+  
+  @Override
+  public List<ContainerResourceDecrease> pullDecreasedContainers() {
+    List<ContainerResourceDecrease> latestDecreasedContainers =
+        new ArrayList<ContainerResourceDecrease>();
+    while (decreasedContainerQueue.peek() != null) {
+      latestDecreasedContainers.add(decreasedContainerQueue.poll());
+    }
+    this.nextHeartBeat = true;
+    return latestDecreasedContainers;
   }
 
   @VisibleForTesting

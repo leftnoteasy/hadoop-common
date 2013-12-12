@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceDecrease;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -213,7 +214,11 @@ public class MockNodes {
     public ResourceOption getResourceOption(){
       return this.perNode;
     }
-    
+
+    @Override
+    public List<ContainerResourceDecrease> pullDecreasedContainers() {
+      return null;
+    }
   };
 
   private static RMNode buildRMNode(int rack, final Resource perNode, NodeState state, String httpAddr) {

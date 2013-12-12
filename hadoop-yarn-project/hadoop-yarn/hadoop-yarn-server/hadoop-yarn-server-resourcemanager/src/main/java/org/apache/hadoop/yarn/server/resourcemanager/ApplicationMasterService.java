@@ -50,6 +50,7 @@ import org.apache.hadoop.yarn.api.records.AMCommand;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.PreemptionContainer;
 import org.apache.hadoop.yarn.api.records.PreemptionContract;
@@ -391,7 +392,9 @@ public class ApplicationMasterService extends AbstractService implements
               blacklistRequest.getBlacklistAdditions() : null;
       List<String> blacklistRemovals =
           (blacklistRequest != null) ?
-              blacklistRequest.getBlacklistRemovals() : null;
+              blacklistRequest.getBlacklistRemovals() : null;        
+      List<ContainerResourceIncreaseRequest> increaseRequests =
+          request.getIncreaseRequests();
 
       // sanity check
       try {
@@ -419,7 +422,7 @@ public class ApplicationMasterService extends AbstractService implements
       // Send new requests to appAttempt.
       Allocation allocation =
           this.rScheduler.allocate(appAttemptId, ask, release, 
-              blacklistAdditions, blacklistRemovals);
+              blacklistAdditions, blacklistRemovals, increaseRequests);
 
       RMApp app = this.rmContext.getRMApps().get(
           appAttemptId.getApplicationId());
@@ -458,7 +461,7 @@ public class ApplicationMasterService extends AbstractService implements
           .pullJustFinishedContainers());
       allocateResponse.setResponseId(lastResponse.getResponseId() + 1);
       allocateResponse.setAvailableResources(allocation.getResourceLimit());
-
+      allocateResponse.setIncreasedContainers(allocation.getIncreasedContainers());
       allocateResponse.setNumClusterNodes(this.rScheduler.getNumClusterNodes());
 
       // add preemption to the allocateResponse message (if any)

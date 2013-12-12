@@ -401,7 +401,7 @@ public class TestRMAppAttemptTransitions {
         applicationAttempt.getAppAttemptState());
     verify(scheduler, times(expectedAllocateCount)).
     allocate(any(ApplicationAttemptId.class), 
-        any(List.class), any(List.class), any(List.class), any(List.class));
+        any(List.class), any(List.class), any(List.class), any(List.class), any(List.class));
 
     assertEquals(0,applicationAttempt.getJustFinishedContainers().size());
     assertNull(applicationAttempt.getMasterContainer());
@@ -428,7 +428,7 @@ public class TestRMAppAttemptTransitions {
         allocate(
             any(
                 ApplicationAttemptId.class), any(List.class), any(List.class), 
-                any(List.class), any(List.class));
+                any(List.class), any(List.class), any(List.class));
   }
   
   /**
@@ -576,6 +576,7 @@ public class TestRMAppAttemptTransitions {
             any(List.class), 
             any(List.class), 
             any(List.class), 
+            any(List.class),
             any(List.class))).
     thenReturn(allocation);
     

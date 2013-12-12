@@ -40,6 +40,8 @@ import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncrease;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -59,7 +61,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManage
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerAppUtils;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
@@ -794,6 +795,21 @@ public class LeafQueue implements CSQueue {
   
   private static final CSAssignment SKIP_ASSIGNMENT = new CSAssignment(true);
   
+  public synchronized CSAssignment assignReservedIncreaseRequest(
+      FiCaSchedulerNode node, Resource clusterResource,
+      ContainerResourceIncreaseRequest increaseRequest) {
+    ContainerId containerId = increaseRequest.getContainerId();
+    FiCaSchedulerApp application = getApplication(containerId
+        .getApplicationAttemptId());
+    RMContainer container = application.getRMContainer(containerId);
+    // get required resource
+    Resource required = getRequiredResourceForIncreaseRequest(increaseRequest,
+        container.getContainer());
+    Resource allocatedResource = assignIncreaseResourceOnNode(application,
+        node, clusterResource, container, increaseRequest, true, required);
+    return new CSAssignment(allocatedResource, NodeType.NODE_LOCAL);
+  }
+  
   @Override
   public synchronized CSAssignment 
   assignContainers(Resource clusterResource, FiCaSchedulerNode node) {
@@ -827,6 +843,14 @@ public class LeafQueue implements CSQueue {
         // Check if this resource is on the blacklist
         if (SchedulerAppUtils.isBlacklisted(application, node, LOG)) {
           continue;
+        }
+        
+        // Schedule increase container first
+        Resource increaseAssigned = assignIncreaseResourcesOnNode(application, node, clusterResource);
+        if (Resources.greaterThan(
+            resourceCalculator, clusterResource, increaseAssigned, Resources.none())) {
+          allocateResource(clusterResource, application, increaseAssigned, false);
+          return new CSAssignment(increaseAssigned, NodeType.NODE_LOCAL);
         }
         
         // Schedule in priority order
@@ -883,7 +907,7 @@ public class LeafQueue implements CSQueue {
 
             // Book-keeping 
             // Note: Update headroom to account for current allocation too...
-            allocateResource(clusterResource, application, assigned);
+            allocateResource(clusterResource, application, assigned, true);
             
             // Don't reset scheduling opportunities for non-local assignments
             // otherwise the app will be delayed for each non-local assignment.
@@ -910,6 +934,133 @@ public class LeafQueue implements CSQueue {
   
     return NULL_ASSIGNMENT;
 
+  }
+  
+  private Resource getRequiredResourceForIncreaseRequest(
+      ContainerResourceIncreaseRequest increaseRequest, Container container) {
+    Resource required = Resources.subtract(
+        increaseRequest.getCapability(), container.getResource());
+    return required;
+  }
+  
+  private synchronized Resource assignIncreaseResourceOnNode(
+      FiCaSchedulerApp application, FiCaSchedulerNode node,
+      Resource clusterResource, RMContainer container,
+      ContainerResourceIncreaseRequest increaseRequest, boolean isReserved,
+      Resource required) {
+    // check if required resource is be able to allocate in this node
+    Resource available = node.getAvailableResource();
+    Resource totalResource = node.getTotalResource();
+
+    if (!Resources.fitsIn(required, totalResource)) {
+      LOG.warn("Node : " + node.getNodeID()
+          + " does not have sufficient resource for request : " + required
+          + " node total capability : " + node.getTotalResource());
+      return Resources.none();
+    }
+
+    // available should at least larger than none, otherwise there's something
+    // wrong
+    assert Resources.greaterThan(resourceCalculator, clusterResource,
+        available, Resources.none());
+
+    // check if we can allocate required resource
+    boolean canBeAllocated = Resources.greaterThanOrEqual(resourceCalculator,
+        clusterResource, available, required);
+    if (canBeAllocated) {
+      // un-reserve this allocation if this is an allocation for reservation
+      if (isReserved) {
+        node.unreserveIncreaseResource(container.getContainerId());
+        application.unreserveIncreaseRequest(container.getContainerId());
+        // Update reserved metrics
+        getMetrics().unreserveResource(
+            application.getUser(), required);
+      }
+      
+      // set container resource size and add it to new increased container
+      container.getContainer().setResource(increaseRequest.getCapability());
+      
+      // make increased container context
+      Token newToken = createContainerToken(application, container.getContainer());
+      if (newToken == null) {
+        // something goes wrong
+        throw new IllegalStateException(
+            "something goes wrong when creating token for containerid="
+                + container.getContainerId().toString());
+      }
+      container.getContainer().setContainerToken(newToken);
+      
+      // add new assignment to application
+      ContainerResourceIncrease newAssignment = ContainerResourceIncrease.newInstance(increaseRequest.getContainerId(), increaseRequest.getCapability(), newToken);
+      
+      application.allocateIncreaseResource(newAssignment, required);
+      node.increaseResource(required);
+      
+      // clean-up potential reservations
+      application.removeIncreaseRequest(node.getNodeID(),
+          increaseRequest.getContainerId());
+      
+      return required;
+    }
+    
+    return Resources.none();
+  }
+  
+  // allocate increase resources in a specified node/app, this method will try
+  // to allocate increase request sorted according to the time of this request
+  // added. It will stop by meet the first increase request cannot by allocated
+  // on this node or all increase requests of this app/node allocated. It will
+  // mark the require cannot be satisfy to reserved in both app/node  
+  private synchronized Resource assignIncreaseResourcesOnNode(
+      FiCaSchedulerApp application, FiCaSchedulerNode node,
+      Resource clusterResource) {
+    List<ContainerResourceIncreaseRequest> increaseRequests = application
+        .getResourceIncreaseRequest(node.getNodeID());
+    if (increaseRequests == null) {
+      return Resources.none();
+    }
+    Resource totalAllocated = Resources.none();
+    for (ContainerResourceIncreaseRequest increaseRequest : increaseRequests) {
+      ContainerId containerId = increaseRequest.getContainerId();
+      RMContainer container = application.getRMContainer(containerId);
+      // check null
+      if (null == container) {
+        // this is finished container, we will handle this case in
+        // containerComplete event
+        continue;
+      }
+      
+      // get required resource
+      Resource required = getRequiredResourceForIncreaseRequest(increaseRequest,
+          container.getContainer());
+      
+      Resource userLimit = computeUserLimitAndSetHeadroom(application,
+          clusterResource, required);
+
+      // Check queue max-capacity limit
+      if (!assignToQueue(clusterResource, required)) {
+        return Resources.none();
+      }
+
+      // Check user limit
+      if (!assignToUser(clusterResource, application.getUser(), userLimit)) {
+        return Resources.none();
+      }
+
+      Resource assigned = assignIncreaseResourceOnNode(application, node,
+          clusterResource, container, increaseRequest, false, required);
+      if (Resources.greaterThan(resourceCalculator, clusterResource, assigned,
+          Resources.none())) {
+        totalAllocated = Resources.add(totalAllocated, assigned);
+      } else {
+        // reserve this allocation
+        application.reserveIncreaseContainer(increaseRequest);
+        node.reserveIncreaseResource(increaseRequest);
+        totalAllocated = Resources.add(totalAllocated, required);
+        return totalAllocated;
+      }
+    }
+    return totalAllocated;
   }
 
   private synchronized CSAssignment 
@@ -1372,6 +1523,15 @@ public class LeafQueue implements CSQueue {
 
       return container.getResource();
     } else {
+      // Check if reserved increase request exceeds
+      // why not directly return if isReserved is false? because
+      // FiCaSchedulerApp will count re-reservation count
+      if (node.isReserved()) {
+        if (node.getReservedIncreaseRequest() != null) {
+          return Resources.none();
+        }
+      }
+      
       // Reserve by 'charging' in advance...
       reserve(application, priority, node, rmContainer, container);
 
@@ -1444,7 +1604,7 @@ public class LeafQueue implements CSQueue {
         // Book-keeping
         if (removed) {
           releaseResource(clusterResource,
-              application, container.getResource());
+              application, container.getResource(), true);
           LOG.info("completedContainer" +
               " container=" + container +
               " resource=" + container.getResource() +
@@ -1464,12 +1624,15 @@ public class LeafQueue implements CSQueue {
   }
 
   synchronized void allocateResource(Resource clusterResource, 
-      FiCaSchedulerApp application, Resource resource) {
+      FiCaSchedulerApp application, Resource resource, boolean newContainer) {
     // Update queue metrics
     Resources.addTo(usedResources, resource);
     CSQueueUtils.updateQueueStatistics(
         resourceCalculator, this, getParent(), clusterResource, minimumAllocation);
-    ++numContainers;
+    
+    if (newContainer) {
+      ++numContainers;
+    }
 
     // Update user metrics
     String userName = application.getUser();
@@ -1489,13 +1652,15 @@ public class LeafQueue implements CSQueue {
   }
 
   synchronized void releaseResource(Resource clusterResource, 
-      FiCaSchedulerApp application, Resource resource) {
+      FiCaSchedulerApp application, Resource resource, boolean completeContainer) {
     // Update queue metrics
     Resources.subtractFrom(usedResources, resource);
     CSQueueUtils.updateQueueStatistics(
         resourceCalculator, this, getParent(), clusterResource, 
         minimumAllocation);
-    --numContainers;
+    if (completeContainer) {
+      --numContainers;
+    }
 
     // Update user metrics
     String userName = application.getUser();
@@ -1601,7 +1766,7 @@ public class LeafQueue implements CSQueue {
       FiCaSchedulerApp application, Container container) {
     // Careful! Locking order is important! 
     synchronized (this) {
-      allocateResource(clusterResource, application, container.getResource());
+      allocateResource(clusterResource, application, container.getResource(), true);
     }
     getParent().recoverContainer(clusterResource, application, container);
 
@@ -1631,5 +1796,22 @@ public class LeafQueue implements CSQueue {
       apps.add(app.getApplicationAttemptId());
     }
   }
-
+  
+  @Override
+  public void cancelIncreaseRequestReservation(Resource clusterResource,
+      ContainerResourceIncreaseRequest changeRequest, Resource required) {
+    FiCaSchedulerApp application =
+        getApplication(changeRequest.getContainerId().getApplicationAttemptId());
+    getMetrics().unreserveResource(application.getUser(), required);
+    releaseResource(clusterResource, application, required, false);
+    getParent().cancelIncreaseRequestReservation(clusterResource,
+        changeRequest, required);
+  }
+  
+  @Override
+  public void decreaseResource(FiCaSchedulerApp application,
+      Resource clusterResource, Resource released) {
+    releaseResource(clusterResource, application, released, false);
+    getParent().decreaseResource(application, clusterResource, released);
+  }
 }

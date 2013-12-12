@@ -38,6 +38,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
@@ -51,7 +52,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEven
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
@@ -562,6 +562,8 @@ public class ParentQueue implements CSQueue {
               resourceCalculator, clusterResource, 
               assignedToChild.getResource(), Resources.none())) {
         // Track resource utilization for the parent-queue
+        // TODO, in our case, we cannot simply ++numContainer because our
+        // reservation will not create new container
         allocateResource(clusterResource, assignedToChild.getResource());
         
         // Track resource utilization in this pass of the scheduler
@@ -620,7 +622,7 @@ public class ParentQueue implements CSQueue {
   }
   
   private boolean canAssign(Resource clusterResource, FiCaSchedulerNode node) {
-    return (node.getReservedContainer() == null) && 
+    return (!node.isReserved()) && 
         Resources.greaterThanOrEqual(resourceCalculator, clusterResource, 
             node.getAvailableResource(), minimumAllocation);
   }
@@ -719,6 +721,23 @@ public class ParentQueue implements CSQueue {
             node, rmContainer, null, event, this);
       }    
     }
+  }
+  
+  @Override
+  public synchronized void cancelIncreaseRequestReservation(
+      Resource clusterResource, ContainerResourceIncreaseRequest changeRequest,
+      Resource required) {
+    Resources.subtractFrom(usedResources, required);
+    CSQueueUtils.updateQueueStatistics(resourceCalculator, this, parent,
+        clusterResource, minimumAllocation);
+  }
+  
+  @Override
+  public synchronized void decreaseResource(FiCaSchedulerApp application,
+      Resource clusterResource, Resource released) {
+    Resources.subtractFrom(usedResources, released);
+    CSQueueUtils.updateQueueStatistics(resourceCalculator, this, parent,
+        clusterResource, minimumAllocation);
   }
   
   synchronized void allocateResource(Resource clusterResource, 

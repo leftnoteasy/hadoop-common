@@ -29,6 +29,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerResourceIncreaseRequest;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -54,6 +55,7 @@ public class FiCaSchedulerNode extends SchedulerNode {
   private volatile int numContainers;
 
   private RMContainer reservedContainer;
+  private ContainerResourceIncreaseRequest reservedIncreaseRequest;
   
   /* set of containers that are allocated containers */
   private final Map<ContainerId, RMContainer> launchedContainers = 
@@ -119,6 +121,10 @@ public class FiCaSchedulerNode extends SchedulerNode {
         getUsedResource() + " used and " + 
         getAvailableResource() + " available");
   }
+  
+  public synchronized void increaseResource(Resource resource) {
+    deductAvailableResource(resource);
+  }
 
   @Override
   public synchronized Resource getAvailableResource() {
@@ -144,6 +150,10 @@ public class FiCaSchedulerNode extends SchedulerNode {
   private synchronized void updateResource(Container container) {
     addAvailableResource(container.getResource());
     --numContainers;
+  }
+  
+  public synchronized void decreaseContainerResource(Resource resource) {
+    deductAvailableResource(resource);
   }
   
   /**
@@ -239,10 +249,28 @@ public class FiCaSchedulerNode extends SchedulerNode {
     }
     this.reservedContainer = reservedContainer;
   }
+  
+  public synchronized void reserveIncreaseResource(
+      ContainerResourceIncreaseRequest increaseRequest) {
+    if (isReserved()) {
+      throw new IllegalStateException(
+          "failed to reserve increase resource, this node is already reserved");
+    }
+    reservedIncreaseRequest = increaseRequest;
+  }
+  
+  public synchronized void unreserveIncreaseResource(ContainerId containerId) {
+    if (reservedIncreaseRequest != null) {
+      if (reservedIncreaseRequest.getContainerId().equals(containerId)) {
+        reservedIncreaseRequest = null;
+        return;
+      }
+    }
+    throw new IllegalStateException("failed to remove reserved increase resource");
+  }
 
   public synchronized void unreserveResource(
-      SchedulerApplication application) {
-    
+      SchedulerApplication application) {    
     // adding NP checks as this can now be called for preemption
     if (reservedContainer != null
         && reservedContainer.getContainer() != null
@@ -267,6 +295,11 @@ public class FiCaSchedulerNode extends SchedulerNode {
   public synchronized RMContainer getReservedContainer() {
     return reservedContainer;
   }
+  
+  public synchronized ContainerResourceIncreaseRequest
+      getReservedIncreaseRequest() {
+    return reservedIncreaseRequest;
+  }
 
   @Override
   public synchronized void applyDeltaOnAvailableResource(Resource deltaResource) {
@@ -274,4 +307,7 @@ public class FiCaSchedulerNode extends SchedulerNode {
     Resources.addTo(this.availableResource, deltaResource);
   }
 
+  public synchronized boolean isReserved() {
+    return reservedContainer != null || reservedIncreaseRequest != null;
+  }
 }
