@@ -994,7 +994,7 @@ public class LeafQueue implements CSQueue {
       ContainerResourceIncrease newAssignment = ContainerResourceIncrease.newInstance(increaseRequest.getContainerId(), increaseRequest.getCapability(), newToken);
       
       application.allocateIncreaseResource(newAssignment, required);
-      node.increaseResource(required);
+      node.allocateIncreaseResource(required);
       
       // clean-up potential reservations
       application.removeIncreaseRequest(node.getNodeID(),

@@ -728,7 +728,7 @@ public class CapacityScheduler
       
       Resource releasedResource = Resources.subtract(
           rmContainer.getContainer().getResource(), resource);
-      decreaseContainerResource(rmContainer, releasedResource);
+      decreaseContainerResource(rmContainer, resource, releasedResource);
     }
 
     // Now node data structures are upto date and ready for scheduling.
@@ -885,7 +885,7 @@ public class CapacityScheduler
   }
   
   private synchronized void decreaseContainerResource(RMContainer rmContainer,
-      Resource releasedResource) {
+      Resource newResource, Resource releasedResource) {
     FiCaSchedulerApp application =
         getApplication(rmContainer.getApplicationAttemptId());
     FiCaSchedulerNode node = getNode(rmContainer.getContainer().getNodeId());
@@ -893,6 +893,9 @@ public class CapacityScheduler
     node.decreaseContainerResource(releasedResource);
     CSQueue leafQueue = (CSQueue) application.getQueue();
     leafQueue.decreaseResource(application, releasedResource, releasedResource);
+    
+    // change resource of this container
+    rmContainer.getContainer().setResource(newResource);
   }
   
   private synchronized void removeIncreaseRequest(

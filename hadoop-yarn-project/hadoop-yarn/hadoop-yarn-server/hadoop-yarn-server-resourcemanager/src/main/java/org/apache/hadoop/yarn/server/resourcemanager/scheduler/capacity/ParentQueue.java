@@ -730,6 +730,11 @@ public class ParentQueue implements CSQueue {
     Resources.subtractFrom(usedResources, required);
     CSQueueUtils.updateQueueStatistics(resourceCalculator, this, parent,
         clusterResource, minimumAllocation);
+    // Inform the parent
+    if (parent != null) {
+      parent.cancelIncreaseRequestReservation(clusterResource, changeRequest,
+          required);
+    }
   }
   
   @Override
@@ -738,6 +743,10 @@ public class ParentQueue implements CSQueue {
     Resources.subtractFrom(usedResources, released);
     CSQueueUtils.updateQueueStatistics(resourceCalculator, this, parent,
         clusterResource, minimumAllocation);
+    // Inform the parent
+    if (parent != null) {
+      parent.decreaseResource(application, clusterResource, released);
+    }
   }
   
   synchronized void allocateResource(Resource clusterResource, 

@@ -122,7 +122,7 @@ public class FiCaSchedulerNode extends SchedulerNode {
         getAvailableResource() + " available");
   }
   
-  public synchronized void increaseResource(Resource resource) {
+  public synchronized void allocateIncreaseResource(Resource resource) {
     deductAvailableResource(resource);
   }
 
@@ -153,7 +153,7 @@ public class FiCaSchedulerNode extends SchedulerNode {
   }
   
   public synchronized void decreaseContainerResource(Resource resource) {
-    deductAvailableResource(resource);
+    addAvailableResource(resource);
   }
   
   /**
